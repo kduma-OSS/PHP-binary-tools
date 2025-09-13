@@ -1,0 +1,23 @@
+{
+    "preset": "psr12",
+    "rules": {
+        "no_unused_imports": true,
+        "ordered_imports": {
+            "sort_algorithm": "alpha"
+        },
+        "blank_line_after_opening_tag": false,
+        "linebreak_after_opening_tag": false,
+        "declare_strict_types": true,
+        "single_blank_line_at_eof": true,
+        "no_trailing_whitespace": true,
+        "no_trailing_whitespace_in_comment": true,
+        "array_syntax": {
+            "syntax": "short"
+        }
+    },
+    "exclude": [
+        "vendor",
+        "coverage",
+        "node_modules"
+    ]
+}

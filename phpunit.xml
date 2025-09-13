@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd" bootstrap="vendor/autoload.php" colors="true" failOnWarning="true" failOnRisky="true" failOnEmptyTestSuite="true" beStrictAboutOutputDuringTests="true" beStrictAboutChangesToGlobalState="true">
+  <testsuites>
+    <testsuite name="CertificateChainOfTrust">
+      <directory>tests</directory>
+    </testsuite>
+  </testsuites>
+  <source>
+    <include>
+      <directory suffix=".php">src</directory>
+    </include>
+    <exclude>
+      <directory>binary-tools</directory>
+    </exclude>
+  </source>
+  <coverage>
+    <report>
+      <html outputDirectory="coverage/html"/>
+      <text outputFile="php://stdout"/>
+      <clover outputFile="coverage/clover.xml"/>
+    </report>
+  </coverage>
+  <php>
+    <ini name="memory_limit" value="256M"/>
+    <ini name="error_reporting" value="-1"/>
+    <ini name="display_errors" value="1"/>
+    <ini name="display_startup_errors" value="1"/>
+  </php>
+</phpunit>
