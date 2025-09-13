@@ -9,9 +9,6 @@
     <include>
       <directory suffix=".php">src</directory>
     </include>
-    <exclude>
-      <directory>binary-tools</directory>
-    </exclude>
   </source>
   <coverage>
     <report>
