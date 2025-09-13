@@ -1,5 +1,9 @@
 # Binary Tools
 
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/kduma/binary-tools.svg?style=flat-square)](https://packagist.org/packages/kduma/binary-tools)
+[![Tests](https://img.shields.io/github/actions/workflow/status/kduma-OSS/PHP-binary-tools/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/kduma-OSS/PHP-binary-tools/actions/workflows/run-tests.yml)
+[![Total Downloads](https://img.shields.io/packagist/dt/kduma/binary-tools.svg?style=flat-square)](https://packagist.org/packages/kduma/binary-tools)
+
 A PHP library for binary data manipulation and encoding/decoding operations. This library provides safe, efficient tools for working with binary data, including UTF-8 validation and secure string comparisons.
 
 Check full documentation: [opensource.duma.sh/libraries/php/binary-tools](https://opensource.duma.sh/libraries/php/binary-tools)
