@@ -2,6 +2,7 @@
     "name": "kduma/binary-tools",
     "type": "library",
     "description": "PHP library for binary data manipulation and encoding/decoding tools",
+    "homepage": "https://opensource.duma.sh/libraries/php/binary-tools",
     "autoload": {
         "psr-4": {
             "KDuma\\BinaryTools\\": "src/"
