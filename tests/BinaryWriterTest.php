@@ -132,7 +132,7 @@ class BinaryWriterTest extends TestCase
             $this->writer->writeBytesWithLength(BinaryString::fromString(str_repeat("\x00", 255 + 1)));
             $this->fail("Expected exception not thrown");
         } catch (\InvalidArgumentException $exception) {
-            $this->assertEquals('String too long for 8-bit length field', $exception->getMessage());
+            $this->assertEquals('Data too long for UINT8 length field (max: 255)', $exception->getMessage());
             $this->assertEquals(0, $this->writer->getLength());
         }
 
@@ -145,7 +145,7 @@ class BinaryWriterTest extends TestCase
             $this->writer->writeBytesWithLength(BinaryString::fromString(str_repeat("\x00", 65535 + 1)), true);
             $this->fail("Expected exception not thrown");
         } catch (\InvalidArgumentException $exception) {
-            $this->assertEquals('String too long for 16-bit length field', $exception->getMessage());
+            $this->assertEquals('Data too long for UINT16 length field (max: 65535)', $exception->getMessage());
             $this->assertEquals(0, $this->writer->getLength());
         }
     }
@@ -287,5 +287,79 @@ class BinaryWriterTest extends TestCase
         $this->writer->reset();
         $this->writer->writeUint16BE(1234);
         $this->assertEquals("\x04\xD2", $this->writer->getBuffer()->toString());
+    }
+
+    /**
+     * @return array<string, array{data: string, length: IntType, expected: string}>
+     */
+    public static function writeBytesWithProvider(): array
+    {
+        return [
+            'UINT8 short' => ['data' => 'abc', 'length' => IntType::UINT8, 'expected' => "\x03abc"],
+            'UINT8 empty' => ['data' => '', 'length' => IntType::UINT8, 'expected' => "\x00"],
+            'UINT16 short' => ['data' => 'abc', 'length' => IntType::UINT16, 'expected' => "\x00\x03abc"],
+            'UINT16_LE short' => ['data' => 'abc', 'length' => IntType::UINT16_LE, 'expected' => "\x03\x00abc"],
+            'UINT32 short' => ['data' => 'abc', 'length' => IntType::UINT32, 'expected' => "\x00\x00\x00\x03abc"],
+        ];
+    }
+
+    #[DataProvider('writeBytesWithProvider')]
+    public function testWriteBytesWith(string $data, IntType $length, string $expected): void
+    {
+        $this->writer->reset();
+        $this->writer->writeBytesWith(BinaryString::fromString($data), $length);
+        $this->assertEquals($expected, $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteBytesWithOverflow(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString(str_repeat('a', 256));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Data too long for UINT8 length field (max: 255)');
+
+        $this->writer->writeBytesWith($data, IntType::UINT8);
+    }
+
+    #[DataProvider('writeBytesWithProvider')]
+    public function testWriteStringWith(string $data, IntType $length, string $expected): void
+    {
+        $this->writer->reset();
+        $this->writer->writeStringWith(BinaryString::fromString($data), $length);
+        $this->assertEquals($expected, $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteStringWithInvalidUTF8(): void
+    {
+        $this->writer->reset();
+        $invalidUTF8 = BinaryString::fromString("\xFF\xFE");
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('String must be valid UTF-8');
+
+        $this->writer->writeStringWith($invalidUTF8, IntType::UINT8);
+    }
+
+    public function testWriteBytesWithLengthDeprecated(): void
+    {
+        $this->writer->reset();
+        $this->writer->writeBytesWithLength(BinaryString::fromString("abc"));
+        $this->assertEquals("\x03abc", $this->writer->getBuffer()->toString());
+
+        $this->writer->reset();
+        $this->writer->writeBytesWithLength(BinaryString::fromString("abc"), true);
+        $this->assertEquals("\x00\x03abc", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteStringWithLengthDeprecated(): void
+    {
+        $this->writer->reset();
+        $this->writer->writeStringWithLength(BinaryString::fromString("abc"));
+        $this->assertEquals("\x03abc", $this->writer->getBuffer()->toString());
+
+        $this->writer->reset();
+        $this->writer->writeStringWithLength(BinaryString::fromString("abc"), true);
+        $this->assertEquals("\x00\x03abc", $this->writer->getBuffer()->toString());
     }
 }

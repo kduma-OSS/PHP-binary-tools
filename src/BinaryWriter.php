@@ -40,24 +40,25 @@ final class BinaryWriter
         return $this;
     }
 
-    public function writeBytesWithLength(BinaryString $bytes, bool $use16BitLength = false): self
+    public function writeBytesWith(BinaryString $bytes, IntType $length): self
     {
-        $length = $bytes->size();
-        if ($use16BitLength) {
-            if ($length > 65535) {
-                throw new \InvalidArgumentException('String too long for 16-bit length field');
-            }
-            $this->writeUint16BE($length);
-        } else {
-            if ($length > 255) {
-                throw new \InvalidArgumentException('String too long for 8-bit length field');
-            }
-            $this->writeByte($length);
+        $dataLength = $bytes->size();
+        $maxLength = $length->maxValue();
+
+        if ($dataLength > $maxLength) {
+            throw new \InvalidArgumentException("Data too long for {$length->name} length field (max: {$maxLength})");
         }
 
+        $this->writeInt($length, $dataLength);
         $this->writeBytes($bytes);
 
         return $this;
+    }
+
+    #[\Deprecated('Use writeBytesWith($bytes, IntType::UINT8) or writeBytesWith($bytes, IntType::UINT16) instead')]
+    public function writeBytesWithLength(BinaryString $bytes, bool $use16BitLength = false): self
+    {
+        return $this->writeBytesWith($bytes, $use16BitLength ? IntType::UINT16 : IntType::UINT8);
     }
 
     public function writeInt(IntType $type, int $value): self
@@ -113,14 +114,20 @@ final class BinaryWriter
         return $this;
     }
 
-    public function writeStringWithLength(BinaryString $string, bool $use16BitLength = false): self
+    public function writeStringWith(BinaryString $string, IntType $length): self
     {
         if (!mb_check_encoding($string->value, 'UTF-8')) {
             throw new \InvalidArgumentException('String must be valid UTF-8');
         }
 
-        $this->writeBytesWithLength($string, $use16BitLength);
+        $this->writeBytesWith($string, $length);
 
         return $this;
+    }
+
+    #[\Deprecated('Use writeStringWith($string, IntType::UINT8) or writeStringWith($string, IntType::UINT16) instead')]
+    public function writeStringWithLength(BinaryString $string, bool $use16BitLength = false): self
+    {
+        return $this->writeStringWith($string, $use16BitLength ? IntType::UINT16 : IntType::UINT8);
     }
 }

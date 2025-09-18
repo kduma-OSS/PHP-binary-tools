@@ -6,6 +6,7 @@ use KDuma\BinaryTools\BinaryReader;
 use KDuma\BinaryTools\BinaryString;
 use KDuma\BinaryTools\IntType;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(BinaryReader::class)]
@@ -392,5 +393,98 @@ class BinaryReaderTest extends TestCase
 
         $this->reader->seek(4);
         $this->assertEquals(0, $this->reader->remaining_bytes);
+    }
+
+    /**
+     * @return array<string, array{data: string, length: IntType, expected: string}>
+     */
+    public static function readBytesWithProvider(): array
+    {
+        return [
+            'UINT8 short' => ['data' => "\x03abc", 'length' => IntType::UINT8, 'expected' => 'abc'],
+            'UINT8 empty' => ['data' => "\x00", 'length' => IntType::UINT8, 'expected' => ''],
+            'UINT16 short' => ['data' => "\x00\x03abc", 'length' => IntType::UINT16, 'expected' => 'abc'],
+            'UINT16_LE short' => ['data' => "\x03\x00abc", 'length' => IntType::UINT16_LE, 'expected' => 'abc'],
+            'UINT32 short' => ['data' => "\x00\x00\x00\x03abc", 'length' => IntType::UINT32, 'expected' => 'abc'],
+        ];
+    }
+
+    #[DataProvider('readBytesWithProvider')]
+    public function testReadBytesWith(string $data, IntType $length, string $expected): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString($data));
+        $result = $reader->readBytesWith($length);
+        $this->assertEquals($expected, $result->toString());
+        $this->assertEquals(strlen($data), $reader->position);
+    }
+
+    #[DataProvider('readBytesWithProvider')]
+    public function testReadStringWith(string $data, IntType $length, string $expected): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString($data));
+        $result = $reader->readStringWith($length);
+        $this->assertEquals($expected, $result->toString());
+        $this->assertEquals(strlen($data), $reader->position);
+    }
+
+    public function testReadBytesWithInsufficientData(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("\x05abc")); // Claims 5 bytes but only has 3
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unexpected end of data while reading 5 bytes');
+
+        $reader->readBytesWith(IntType::UINT8);
+    }
+
+    public function testReadStringWithInvalidUTF8(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("\x02\xFF\xFE")); // 2 bytes of invalid UTF-8
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Invalid UTF-8 string');
+
+        $reader->readStringWith(IntType::UINT8);
+    }
+
+    public function testReadBytesWithLengthDeprecated(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("\x03abc"));
+        $result = $reader->readBytesWithLength();
+        $this->assertEquals('abc', $result->toString());
+
+        $reader = new BinaryReader(BinaryString::fromString("\x00\x03abc"));
+        $result = $reader->readBytesWithLength(true);
+        $this->assertEquals('abc', $result->toString());
+    }
+
+    public function testReadStringWithLengthDeprecated(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("\x03abc"));
+        $result = $reader->readStringWithLength();
+        $this->assertEquals('abc', $result->toString());
+
+        $reader = new BinaryReader(BinaryString::fromString("\x00\x03abc"));
+        $result = $reader->readStringWithLength(true);
+        $this->assertEquals('abc', $result->toString());
+    }
+
+    public function testRoundTripCompatibility(): void
+    {
+        $writer = new \KDuma\BinaryTools\BinaryWriter();
+        $testData = BinaryString::fromString("Hello, World!");
+
+        // Test UINT8
+        $writer->writeBytesWith($testData, IntType::UINT8);
+        $reader = new BinaryReader($writer->getBuffer());
+        $result = $reader->readBytesWith(IntType::UINT8);
+        $this->assertTrue($testData->equals($result));
+
+        // Test UINT16
+        $writer->reset();
+        $writer->writeBytesWith($testData, IntType::UINT16);
+        $reader = new BinaryReader($writer->getBuffer());
+        $result = $reader->readBytesWith(IntType::UINT16);
+        $this->assertTrue($testData->equals($result));
     }
 }

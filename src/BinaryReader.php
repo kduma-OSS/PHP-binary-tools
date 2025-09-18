@@ -75,20 +75,22 @@ final class BinaryReader
         return BinaryString::fromString($result);
     }
 
-    public function readBytesWithLength(bool $use16BitLength = false): BinaryString
+    public function readBytesWith(IntType $length): BinaryString
     {
-        if ($use16BitLength) {
-            $length = $this->readInt(IntType::UINT16);
-        } else {
-            $length = $this->readInt(IntType::UINT8);
-        }
+        $dataLength = $this->readInt($length);
 
         try {
-            return $this->readBytes($length);
+            return $this->readBytes($dataLength);
         } catch (\RuntimeException $exception) {
-            $this->position -= ($use16BitLength ? 2 : 1);
+            $this->position -= $length->bytes();
             throw $exception;
         }
+    }
+
+    #[\Deprecated('Use readBytesWith(IntType::UINT8) or readBytesWith(IntType::UINT16) instead')]
+    public function readBytesWithLength(bool $use16BitLength = false): BinaryString
+    {
+        return $this->readBytesWith($use16BitLength ? IntType::UINT16 : IntType::UINT8);
     }
 
     public function readInt(IntType $type): int
@@ -145,16 +147,22 @@ final class BinaryReader
         return $bytes;
     }
 
-    public function readStringWithLength(bool $use16BitLength = false): BinaryString
+    public function readStringWith(IntType $length): BinaryString
     {
-        $string = $this->readBytesWithLength($use16BitLength);
+        $string = $this->readBytesWith($length);
 
         if (!mb_check_encoding($string->value, 'UTF-8')) {
-            $this->position -= ($use16BitLength ? 2 : 1) + $string->size();
+            $this->position -= $length->bytes() + $string->size();
             throw new RuntimeException('Invalid UTF-8 string');
         }
 
         return $string;
+    }
+
+    #[\Deprecated('Use readStringWith(IntType::UINT8) or readStringWith(IntType::UINT16) instead')]
+    public function readStringWithLength(bool $use16BitLength = false): BinaryString
+    {
+        return $this->readStringWith($use16BitLength ? IntType::UINT16 : IntType::UINT8);
     }
 
     public function peekByte(): int
