@@ -588,6 +588,26 @@ class BinaryReaderTest extends TestCase
         $reader->readStringWith(terminator: Terminator::NUL);
     }
 
+    public function testReadBytesWithEmptyOptionalTerminatorThrows(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("Anything"));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Terminator cannot be empty');
+
+        $reader->readBytesWith(optional_terminator: BinaryString::fromString(''));
+    }
+
+    public function testReadBytesWithEmptyRequiredTerminatorThrows(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("Anything"));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Terminator cannot be empty');
+
+        $reader->readBytesWith(terminator: BinaryString::fromString(''));
+    }
+
     public function testReadStringWithTerminatorParameterValidation(): void
     {
         $reader = new BinaryReader(BinaryString::fromString("test"));

@@ -244,11 +244,7 @@ final class BinaryReader
         $terminatorSize = $terminatorBytes->size();
 
         if ($terminatorSize === 0) {
-            if ($terminatorIsOptional) {
-                return BinaryString::fromString('');
-            }
-
-            throw new \InvalidArgumentException('Terminator cannot be empty when required');
+            throw new \InvalidArgumentException('Terminator cannot be empty');
         }
 
         $remainingData = substr($this->_data, $this->position);
