@@ -578,6 +578,19 @@ class BinaryReaderTest extends TestCase
         $reader->readBytesWith(terminator: Terminator::NUL);
     }
 
+    public function testReadBytesWithNegativeLengthThrows(): void
+    {
+        $writer = new \KDuma\BinaryTools\BinaryWriter();
+        $writer->writeInt(IntType::INT8, -1); // length stored as signed byte -1
+
+        $reader = new BinaryReader($writer->getBuffer());
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Negative length -1 is invalid for INT8');
+
+        $reader->readBytesWith(length: IntType::INT8);
+    }
+
     public function testReadStringWithMissingRequiredTerminatorThrows(): void
     {
         $reader = new BinaryReader(BinaryString::fromString("No terminator"));

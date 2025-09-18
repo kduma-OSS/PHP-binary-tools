@@ -230,6 +230,10 @@ final class BinaryReader
     {
         $dataLength = $this->readInt($length);
 
+        if ($dataLength < 0) {
+            throw new RuntimeException(sprintf('Negative length %d is invalid for %s', $dataLength, $length->name));
+        }
+
         try {
             return $this->readBytes($dataLength);
         } catch (\RuntimeException $exception) {
