@@ -77,11 +77,62 @@ class Base32Test extends TestCase
         $this->assertSame($original, $reEncoded);
     }
 
-    public function testLowercaseInputDoesNotDecodeToExpectedValue(): void
+    public function testLowercaseInputThrowsException(): void
     {
         $lower = 'mzxw6ytboi';
-        $decodedLower = Base32::fromBase32($lower);
 
-        $this->assertNotSame('foobar', $decodedLower);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid character 'm' at position 0 in Base32 input.");
+
+        Base32::fromBase32($lower);
+    }
+
+    public function testCustomAlphabet(): void
+    {
+        $customAlphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUV';
+        $data = 'Hello World';
+
+        $encoded = Base32::toBase32($data, $customAlphabet);
+        $decoded = Base32::fromBase32($encoded, $customAlphabet);
+
+        $this->assertSame($data, $decoded);
+    }
+
+    public function testInvalidAlphabetLengthThrowsException(): void
+    {
+        $shortAlphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ12345'; // 31 chars instead of 32
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Base32 alphabet must contain exactly 32 characters.');
+
+        Base32::toBase32('test', $shortAlphabet);
+    }
+
+    public function testDuplicateCharactersInAlphabetThrowsException(): void
+    {
+        $duplicateAlphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ23456A'; // 'A' appears twice
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Base32 alphabet must contain unique characters.');
+
+        Base32::toBase32('test', $duplicateAlphabet);
+    }
+
+    public function testPaddingIsIgnoredDuringDecoding(): void
+    {
+        $paddedBase32 = 'MZXW6YTBOI======'; // "foobar" with padding
+        $decoded = Base32::fromBase32($paddedBase32);
+
+        $this->assertSame('foobar', $decoded);
+    }
+
+    public function testInvalidCharacterInMiddleThrowsException(): void
+    {
+        $invalidBase32 = 'MZXW@YTBOI'; // '@' is invalid
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid character '@' at position 4 in Base32 input.");
+
+        Base32::fromBase32($invalidBase32);
     }
 }
