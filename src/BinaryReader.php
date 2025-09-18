@@ -81,25 +81,35 @@ final class BinaryReader
         ?IntType $length = null,
         Terminator|BinaryString|null $terminator = null,
         Terminator|BinaryString|null $optional_terminator = null,
+        Terminator|BinaryString|null $padding = null,
+        ?int $padding_size = null,
     ): BinaryString {
+        if ($padding === null && $padding_size !== null) {
+            $padding = Terminator::NUL;
+        }
+
         $modes = array_filter([
             'length' => $length,
             'terminator' => $terminator,
             'optional_terminator' => $optional_terminator,
+            'padding' => $padding,
         ], static fn ($value) => $value !== null);
 
         if (count($modes) !== 1) {
-            throw new \InvalidArgumentException('Exactly one of length terminator or optional_terminator must be provided');
+            throw new \InvalidArgumentException('Exactly one of length, terminator, optional_terminator, or padding must be provided');
         }
 
         $selectedMode = array_key_first($modes);
 
-
         if ($selectedMode === 'length') {
             return $this->_readWithLength($length);
-        } elseif ($selectedMode === 'terminator' || $selectedMode === 'optional_terminator') {
-            return $this->_readWithTerminator($modes[$selectedMode], $selectedMode === 'optional_terminator');
         }
+
+        if ($selectedMode === 'padding') {
+            return $this->_readWithPadding($padding, $padding_size);
+        }
+
+        return $this->_readWithTerminator($modes[$selectedMode], $selectedMode === 'optional_terminator');
     }
 
     public function readInt(IntType $type): int
@@ -162,9 +172,11 @@ final class BinaryReader
         ?IntType $length = null,
         Terminator|BinaryString|null $terminator = null,
         Terminator|BinaryString|null $optional_terminator = null,
+        Terminator|BinaryString|null $padding = null,
+        ?int $padding_size = null,
     ): BinaryString {
         $startPosition = $this->position;
-        $string = $this->readBytesWith($length, $terminator, $optional_terminator);
+        $string = $this->readBytesWith($length, $terminator, $optional_terminator, $padding, $padding_size);
 
         if (!mb_check_encoding($string->value, 'UTF-8')) {
             $this->position = $startPosition;
@@ -217,13 +229,13 @@ final class BinaryReader
     #[Deprecated('Use readBytesWith(length: IntType::UINT8) or readBytesWith(length: IntType::UINT16) instead')]
     public function readBytesWithLength(bool $use16BitLength = false): BinaryString
     {
-        return $this->readBytesWith($use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null);
+        return $this->readBytesWith($use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null, null, null);
     }
 
     #[Deprecated('Use readStringWith(length: IntType::UINT8) or readStringWith(length: IntType::UINT16) instead')]
     public function readStringWithLength(bool $use16BitLength = false): BinaryString
     {
-        return $this->readStringWith($use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null);
+        return $this->readStringWith($use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null, null, null);
     }
 
     // Private methods
@@ -269,5 +281,45 @@ final class BinaryReader
         $this->position += $terminatorPosition + $terminatorSize;
 
         return BinaryString::fromString($result);
+    }
+
+    private function _readWithPadding(BinaryString|Terminator $padding, ?int $paddingSize): BinaryString
+    {
+        if ($paddingSize === null) {
+            throw new \InvalidArgumentException('Padding size must be provided when padding is used');
+        }
+
+        $padding = $padding instanceof Terminator ? $padding->toBytes() : $padding;
+
+        if ($paddingSize < 0) {
+            throw new RuntimeException('Padding size cannot be negative');
+        }
+
+        if ($padding->size() !== 1) {
+            throw new \InvalidArgumentException('Padding must be exactly one byte');
+        }
+
+        if ($paddingSize === 0) {
+            return BinaryString::fromString('');
+        }
+
+        $raw = $this->readBytes($paddingSize);
+        $dataString = $raw->value;
+        $padByte = $padding->value;
+        $padPosition = strpos($dataString, $padByte);
+
+        if ($padPosition === false) {
+            return $raw;
+        }
+
+        for ($i = $padPosition; $i < $paddingSize; $i++) {
+            if ($dataString[$i] !== $padByte) {
+                throw new RuntimeException('Invalid padding sequence encountered');
+            }
+        }
+
+        $data = substr($dataString, 0, $padPosition);
+
+        return BinaryString::fromString($data);
     }
 }

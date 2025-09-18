@@ -400,6 +400,34 @@ class BinaryWriterTest extends TestCase
         $this->writer->writeBytesWith($data, terminator: Terminator::NUL);
     }
 
+    public function testWriteBytesWithOptionalTerminatorTriggersNotice(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString('Hello');
+
+        $notice = null;
+        set_error_handler(function (int $errno, string $errstr) use (&$notice) {
+            $notice = ['errno' => $errno, 'message' => $errstr];
+
+            return true;
+        }, E_USER_NOTICE);
+
+        try {
+            $this->writer->writeBytesWith($data, optional_terminator: Terminator::NUL);
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertNotNull($notice, 'Expected notice not triggered');
+        $this->assertSame(E_USER_NOTICE, $notice['errno']);
+        $this->assertSame(
+            'UNSTABLE API: optional_terminator has no effect when writing IN THIS VERSION; data will always be terminated IN THIS VERSION; it will probably change in future',
+            $notice['message']
+        );
+
+        $this->assertEquals("Hello\x00", $this->writer->getBuffer()->toString());
+    }
+
     public function testWriteStringWithTerminatorNUL(): void
     {
         $this->writer->reset();
@@ -424,7 +452,7 @@ class BinaryWriterTest extends TestCase
 
         // Test both parameters provided
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Exactly one of length or terminator must be provided');
+        $this->expectExceptionMessage('Exactly one of length, terminator, optional_terminator, or padding must be provided');
 
         $this->writer->writeBytesWith($data, IntType::UINT8, Terminator::NUL);
     }
@@ -436,7 +464,7 @@ class BinaryWriterTest extends TestCase
 
         // Test no parameters provided
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Exactly one of length or terminator must be provided');
+        $this->expectExceptionMessage('Exactly one of length, terminator, optional_terminator, or padding must be provided');
 
         $this->writer->writeBytesWith($data);
     }
@@ -458,6 +486,123 @@ class BinaryWriterTest extends TestCase
         $data = BinaryString::fromString("HTTP/1.1 200 OK");
         $this->writer->writeBytesWith($data, terminator: Terminator::CRLF);
         $this->assertEquals("HTTP/1.1 200 OK\x0D\x0A", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteBytesWithPaddingExactSize(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString('ABCDE');
+
+        $this->writer->writeBytesWith($data, padding: BinaryString::fromString("\x20"), padding_size: 5);
+
+        $this->assertEquals('ABCDE', $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteBytesWithPaddingShorterThanSize(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString('Hi');
+
+        $this->writer->writeBytesWith($data, padding: BinaryString::fromString("\x20"), padding_size: 5);
+
+        $this->assertEquals("Hi   ", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteBytesWithPaddingDefaultPadByte(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString('AB');
+
+        $this->writer->writeBytesWith($data, padding_size: 4);
+
+        $this->assertEquals("AB\x00\x00", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteBytesWithPaddingTooLongThrows(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString('TooLong');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Data too long for padding size');
+
+        $this->writer->writeBytesWith($data, padding: BinaryString::fromString("\x20"), padding_size: 5);
+    }
+
+    public function testWriteBytesWithPaddingRejectsDataContainingPadByte(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString('Hello World');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Data contains padding byte');
+
+        $this->writer->writeBytesWith($data, padding: BinaryString::fromString("\x20"), padding_size: 20);
+    }
+
+    public function testWriteBytesWithEmptyTerminatorThrows(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString('Hello');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Terminator cannot be empty');
+
+        $this->writer->writeBytesWith($data, terminator: BinaryString::fromString(''));
+    }
+
+    public function testWriteBytesWithPaddingRequiresSize(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString('Data');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Padding size must be provided when padding is used');
+
+        $this->writer->writeBytesWith($data, padding: BinaryString::fromString("\x20"));
+    }
+
+    public function testWriteBytesWithPaddingRejectsMultiBytePadding(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString('Data');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Padding must be exactly one byte');
+
+        $this->writer->writeBytesWith($data, padding: Terminator::CRLF, padding_size: 10);
+    }
+
+    public function testWriteBytesWithPaddingNegativeSizeThrows(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString('AB');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Padding size cannot be negative');
+
+        $this->writer->writeBytesWith($data, padding: BinaryString::fromString("\x20"), padding_size: -1);
+    }
+
+    public function testWriteBytesWithPaddingCannotCombineWithLength(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString('AB');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Exactly one of length, terminator, optional_terminator, or padding must be provided');
+
+        $this->writer->writeBytesWith($data, length: IntType::UINT8, padding_size: 4);
+    }
+
+    public function testWriteStringWithPadding(): void
+    {
+        $this->writer->reset();
+        $string = BinaryString::fromString('Hi');
+
+        $this->writer->writeStringWith($string, padding: BinaryString::fromString("\x20"), padding_size: 4);
+
+        $this->assertEquals("Hi  ", $this->writer->getBuffer()->toString());
     }
 
     public function testWriteStringWithCommonControlCharacters(): void

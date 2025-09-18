@@ -591,6 +591,105 @@ class BinaryReaderTest extends TestCase
         $reader->readBytesWith(length: IntType::INT8);
     }
 
+    public function testReadBytesWithPaddingReturnsDataUntilPad(): void
+    {
+        $data = BinaryString::fromString("Hi\x00\x00\x00");
+        $reader = new BinaryReader($data);
+
+        $result = $reader->readBytesWith(padding_size: 5, padding: BinaryString::fromString("\x00"));
+
+        $this->assertEquals('Hi', $result->toString());
+        $this->assertEquals(5, $reader->position);
+    }
+
+    public function testReadBytesWithPaddingWithoutPadByte(): void
+    {
+        $data = BinaryString::fromString('Hello');
+        $reader = new BinaryReader($data);
+
+        $result = $reader->readBytesWith(padding_size: 5, padding: BinaryString::fromString("\x00"));
+
+        $this->assertEquals('Hello', $result->toString());
+        $this->assertEquals(5, $reader->position);
+    }
+
+    public function testReadBytesWithPaddingInvalidSequenceThrows(): void
+    {
+        $data = BinaryString::fromString("Hi\x00A\x00");
+        $reader = new BinaryReader($data);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Invalid padding sequence encountered');
+
+        $reader->readBytesWith(padding_size: 5, padding: BinaryString::fromString("\x00"));
+    }
+
+    public function testReadBytesWithPaddingZeroSizeReturnsEmpty(): void
+    {
+        $data = BinaryString::fromString('ABC');
+        $reader = new BinaryReader($data);
+
+        $result = $reader->readBytesWith(padding: BinaryString::fromString("\x00"), padding_size: 0);
+
+        $this->assertEquals('', $result->toString());
+        $this->assertEquals(0, $reader->position);
+    }
+
+    public function testReadBytesWithPaddingCannotCombineWithLength(): void
+    {
+        $data = BinaryString::fromString('Data');
+        $reader = new BinaryReader($data);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Exactly one of length, terminator, optional_terminator, or padding must be provided');
+
+        $reader->readBytesWith(length: IntType::UINT8, padding_size: 4);
+    }
+
+    public function testReadBytesWithPaddingNegativeSizeThrows(): void
+    {
+        $data = BinaryString::fromString('Data');
+        $reader = new BinaryReader($data);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Padding size cannot be negative');
+
+        $reader->readBytesWith(padding_size: -1, padding: BinaryString::fromString("\x00"));
+    }
+
+    public function testReadBytesWithPaddingRequiresSize(): void
+    {
+        $data = BinaryString::fromString('Hello');
+        $reader = new BinaryReader($data);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Padding size must be provided when padding is used');
+
+        $reader->readBytesWith(padding: BinaryString::fromString("\x00"));
+    }
+
+    public function testReadBytesWithPaddingDefaultPadByte(): void
+    {
+        $data = BinaryString::fromString("Data\x00\x00");
+        $reader = new BinaryReader($data);
+
+        $result = $reader->readBytesWith(padding_size: 6);
+
+        $this->assertEquals('Data', $result->toString());
+        $this->assertEquals(6, $reader->position);
+    }
+
+    public function testReadBytesWithPaddingRejectsMultiBytePad(): void
+    {
+        $data = BinaryString::fromString("Hi\r\n\r\n");
+        $reader = new BinaryReader($data);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Padding must be exactly one byte');
+
+        $reader->readBytesWith(padding_size: 6, padding: Terminator::CRLF);
+    }
+
     public function testReadStringWithMissingRequiredTerminatorThrows(): void
     {
         $reader = new BinaryReader(BinaryString::fromString("No terminator"));
@@ -627,7 +726,7 @@ class BinaryReaderTest extends TestCase
 
         // Test both parameters provided
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Exactly one of length terminator or optional_terminator must be provided');
+        $this->expectExceptionMessage('Exactly one of length, terminator, optional_terminator, or padding must be provided');
 
         $reader->readStringWith(IntType::UINT8, Terminator::NUL);
     }
@@ -638,7 +737,7 @@ class BinaryReaderTest extends TestCase
 
         // Test no parameters provided
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Exactly one of length terminator or optional_terminator must be provided');
+        $this->expectExceptionMessage('Exactly one of length, terminator, optional_terminator, or padding must be provided');
 
         $reader->readBytesWith();
     }
@@ -648,7 +747,7 @@ class BinaryReaderTest extends TestCase
         $reader = new BinaryReader(BinaryString::fromString("data"));
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Exactly one of length terminator or optional_terminator must be provided');
+        $this->expectExceptionMessage('Exactly one of length, terminator, optional_terminator, or padding must be provided');
 
         $reader->readBytesWith(terminator: Terminator::NUL, optional_terminator: Terminator::NUL);
     }

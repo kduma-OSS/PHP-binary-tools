@@ -40,17 +40,48 @@ final class BinaryWriter
         return $this;
     }
 
-    public function writeBytesWith(BinaryString $bytes, ?IntType $length = null, Terminator|BinaryString|null $terminator = null): self
+    public function writeBytesWith(
+        BinaryString $bytes,
+        ?IntType $length = null,
+        Terminator|BinaryString|null $terminator = null,
+        Terminator|BinaryString|null $optional_terminator = null,
+        Terminator|BinaryString|null $padding = null,
+        ?int $padding_size = null,
+    ): self
     {
-        if (($length === null && $terminator === null) || ($length !== null && $terminator !== null)) {
-            throw new \InvalidArgumentException('Exactly one of length or terminator must be provided');
+        if ($padding === null && $padding_size !== null) {
+            $padding = Terminator::NUL;
         }
 
-        if ($length !== null) {
-            return $this->_writeWithLength($bytes, $length);
-        } else {
-            return $this->_writeWithTerminator($bytes, $terminator);
+        $modes = array_filter([
+            'length' => $length,
+            'terminator' => $terminator,
+            'optional_terminator' => $optional_terminator,
+            'padding' => $padding,
+        ], static fn ($value) => $value !== null);
+
+        if (count($modes) !== 1) {
+            throw new \InvalidArgumentException('Exactly one of length, terminator, optional_terminator, or padding must be provided');
         }
+
+        $modeKey = array_key_first($modes);
+
+        if ($modeKey === 'length') {
+            return $this->_writeWithLength($bytes, $length);
+        }
+
+        if ($modeKey === 'padding') {
+            return $this->_writeWithPadding($bytes, $padding, $padding_size);
+        }
+
+        if ($modeKey === 'optional_terminator') {
+            trigger_error(
+                'UNSTABLE API: optional_terminator has no effect when writing IN THIS VERSION; data will always be terminated IN THIS VERSION; it will probably change in future',
+                E_USER_NOTICE
+            );
+        }
+
+        return $this->_writeWithTerminator($bytes, $modes[$modeKey]);
     }
 
     public function writeInt(IntType $type, int $value): self
@@ -101,13 +132,20 @@ final class BinaryWriter
         return $this;
     }
 
-    public function writeStringWith(BinaryString $string, ?IntType $length = null, Terminator|BinaryString|null $terminator = null): self
+    public function writeStringWith(
+        BinaryString $string,
+        ?IntType $length = null,
+        Terminator|BinaryString|null $terminator = null,
+        Terminator|BinaryString|null $optional_terminator = null,
+        Terminator|BinaryString|null $padding = null,
+        ?int $padding_size = null,
+    ): self
     {
         if (!mb_check_encoding($string->value, 'UTF-8')) {
             throw new \InvalidArgumentException('String must be valid UTF-8');
         }
 
-        return $this->writeBytesWith($string, $length, $terminator);
+        return $this->writeBytesWith($string, $length, $terminator, $optional_terminator, $padding, $padding_size);
     }
 
     // Deprecated methods
@@ -121,13 +159,13 @@ final class BinaryWriter
     #[Deprecated('Use writeBytesWith($bytes, length: IntType::UINT8) or writeBytesWith($bytes, length: IntType::UINT16) instead')]
     public function writeBytesWithLength(BinaryString $bytes, bool $use16BitLength = false): self
     {
-        return $this->writeBytesWith($bytes, $use16BitLength ? IntType::UINT16 : IntType::UINT8, null);
+        return $this->writeBytesWith($bytes, $use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null, null, null);
     }
 
     #[Deprecated('Use writeStringWith($string, length: IntType::UINT8) or writeStringWith($string, length: IntType::UINT16) instead')]
     public function writeStringWithLength(BinaryString $string, bool $use16BitLength = false): self
     {
-        return $this->writeStringWith($string, $use16BitLength ? IntType::UINT16 : IntType::UINT8, null);
+        return $this->writeStringWith($string, $use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null, null, null);
     }
 
     // Private methods
@@ -151,12 +189,52 @@ final class BinaryWriter
     {
         $terminatorBytes = $terminator instanceof Terminator ? $terminator->toBytes() : $terminator;
 
+        if ($terminatorBytes->size() === 0) {
+            throw new \InvalidArgumentException('Terminator cannot be empty');
+        }
+
         if ($data->contains($terminatorBytes)) {
             throw new \InvalidArgumentException('Data contains terminator sequence');
         }
 
         $this->writeBytes($data);
         $this->writeBytes($terminatorBytes);
+
+        return $this;
+    }
+
+    private function _writeWithPadding(BinaryString $data, BinaryString|Terminator $padding, ?int $paddingSize): self
+    {
+        $padding = $padding instanceof Terminator ? $padding->toBytes() : $padding;
+
+        if ($paddingSize === null) {
+            throw new \InvalidArgumentException('Padding size must be provided when padding is used');
+        }
+
+        if ($paddingSize < 0) {
+            throw new \InvalidArgumentException('Padding size cannot be negative');
+        }
+
+        if ($padding->size() !== 1) {
+            throw new \InvalidArgumentException('Padding must be exactly one byte');
+        }
+
+        if ($data->contains($padding)) {
+            throw new \InvalidArgumentException('Data contains padding byte');
+        }
+
+        $dataLength = $data->size();
+
+        if ($dataLength > $paddingSize) {
+            throw new \InvalidArgumentException('Data too long for padding size');
+        }
+
+        $this->writeBytes($data);
+
+        if ($dataLength < $paddingSize) {
+            $padByte = $padding->value;
+            $this->buffer .= str_repeat($padByte, $paddingSize - $dataLength);
+        }
 
         return $this;
     }
