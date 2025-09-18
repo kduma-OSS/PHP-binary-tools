@@ -2,6 +2,8 @@
 
 namespace KDuma\BinaryTools;
 
+use Deprecated;
+
 final class BinaryWriter
 {
     private string $buffer = '';
@@ -94,7 +96,7 @@ final class BinaryWriter
         return $this;
     }
 
-    #[\Deprecated('Use writeInt(IntType::UINT16, $value) instead')]
+    #[Deprecated('Use writeInt(IntType::UINT16, $value) instead')]
     public function writeUint16BE(int $value): self
     {
         return $this->writeInt(IntType::UINT16, $value);

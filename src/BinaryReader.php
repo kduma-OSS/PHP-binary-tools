@@ -2,6 +2,7 @@
 
 namespace KDuma\BinaryTools;
 
+use Deprecated;
 use RuntimeException;
 
 final class BinaryReader
@@ -125,7 +126,7 @@ final class BinaryReader
         return $value;
     }
 
-    #[\Deprecated('Use readInt(IntType::UINT16) instead')]
+    #[Deprecated('Use readInt(IntType::UINT16) instead')]
     public function readUint16BE(): int
     {
         return $this->readInt(IntType::UINT16);
