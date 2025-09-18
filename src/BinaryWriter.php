@@ -58,15 +58,46 @@ final class BinaryWriter
         return $this;
     }
 
-    public function writeUint16BE(int $value): self
+    public function writeInt(IntType $type, int $value): self
     {
-        if ($value < 0 || $value > 65535) {
-            throw new \InvalidArgumentException('Uint16 value must be between 0 and 65535');
+        if (!$type->isSupported()) {
+            // @codeCoverageIgnoreStart
+            throw new \RuntimeException(
+                sprintf('Cannot write %d-byte integers on %d-byte platform', $type->bytes(), PHP_INT_SIZE)
+            );
+            // @codeCoverageIgnoreEnd
         }
 
-        $this->buffer .= chr(($value >> 8) & 0xFF);
-        $this->buffer .= chr($value & 0xFF);
+        $bytesCount = $type->bytes();
+
+        if (!$type->isValid($value)) {
+            throw new \InvalidArgumentException(
+                sprintf('Value %d is out of range for %s', $value, $type->name)
+            );
+        }
+
+        // Handle negative values for signed types
+        if ($type->isSigned() && $value < 0) {
+            $value = (1 << ($bytesCount * 8)) + $value;
+        }
+
+        $bytes = '';
+        for ($i = $bytesCount - 1; $i >= 0; $i--) {
+            $bytes .= chr(($value >> ($i * 8)) & 0xFF);
+        }
+
+        if ($type->isLittleEndian()) {
+            $bytes = strrev($bytes);
+        }
+
+        $this->buffer .= $bytes;
         return $this;
+    }
+
+    #[\Deprecated('Use writeInt(IntType::UINT16, $value) instead')]
+    public function writeUint16BE(int $value): self
+    {
+        return $this->writeInt(IntType::UINT16, $value);
     }
 
     public function writeString(BinaryString $string): self

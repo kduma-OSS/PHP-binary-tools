@@ -4,7 +4,9 @@ namespace KDuma\BinaryTools\Tests;
 
 use KDuma\BinaryTools\BinaryString;
 use KDuma\BinaryTools\BinaryWriter;
+use KDuma\BinaryTools\IntType;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(BinaryWriter::class)]
@@ -63,7 +65,7 @@ class BinaryWriterTest extends TestCase
             $this->writer->writeUint16BE(65535 + 1);
             $this->fail("Expected exception not thrown");
         } catch (\InvalidArgumentException $exception) {
-            $this->assertEquals('Uint16 value must be between 0 and 65535', $exception->getMessage());
+            $this->assertEquals('Value 65536 is out of range for UINT16', $exception->getMessage());
             $this->assertEquals(0, $this->writer->getLength());
         }
     }
@@ -178,5 +180,112 @@ class BinaryWriterTest extends TestCase
             $this->assertEquals('String must be valid UTF-8', $exception->getMessage());
             $this->assertEquals(0, $this->writer->getLength());
         }
+    }
+
+    public static function writeIntProvider(): iterable
+    {
+        yield 'uint8 zero' => [0, "\x00", IntType::UINT8];
+        yield 'uint8 max' => [255, "\xFF", IntType::UINT8];
+        yield 'int8 positive' => [127, "\x7F", IntType::INT8];
+        yield 'int8 negative' => [-1, "\xFF", IntType::INT8];
+        yield 'int8 min' => [-128, "\x80", IntType::INT8];
+        yield 'uint16 positive' => [1234, "\x04\xD2", IntType::UINT16];
+        yield 'uint16 little endian positive' => [1234, "\xD2\x04", IntType::UINT16_LE];
+        yield 'int16 positive' => [1234, "\x04\xD2", IntType::INT16];
+        yield 'int16 little endian positive' => [1234, "\xD2\x04", IntType::INT16_LE];
+        yield 'int16 negative' => [-1234, "\xFB\x2E", IntType::INT16];
+        yield 'int16 little endian negative' => [-1234, "\x2E\xFB", IntType::INT16_LE];
+        yield 'uint32 positive' => [0xDEADBEEF, "\xDE\xAD\xBE\xEF", IntType::UINT32];
+        yield 'uint32 little endian positive' => [0xDEADBEEF, "\xEF\xBE\xAD\xDE", IntType::UINT32_LE];
+        yield 'int32 positive' => [1234, "\x00\x00\x04\xD2", IntType::INT32];
+        yield 'int32 little endian positive' => [1234, "\xD2\x04\x00\x00", IntType::INT32_LE];
+        yield 'int32 negative' => [-1234, "\xFF\xFF\xFB\x2E", IntType::INT32];
+        yield 'int32 little endian negative' => [-1234, "\x2E\xFB\xFF\xFF", IntType::INT32_LE];
+        yield 'uint64 positive' => [0x0123456789ABCDEF, "\x01\x23\x45\x67\x89\xAB\xCD\xEF", IntType::UINT64];
+        yield 'uint64 little endian positive' => [0x0123456789ABCDEF, "\xEF\xCD\xAB\x89\x67\x45\x23\x01", IntType::UINT64_LE];
+        yield 'int64 positive' => [1234, "\x00\x00\x00\x00\x00\x00\x04\xD2", IntType::INT64];
+        yield 'int64 little endian positive' => [1234, "\xD2\x04\x00\x00\x00\x00\x00\x00", IntType::INT64_LE];
+        yield 'int64 negative' => [-1234, "\xFF\xFF\xFF\xFF\xFF\xFF\xFB\x2E", IntType::INT64];
+        yield 'int64 little endian negative' => [-1234, "\x2E\xFB\xFF\xFF\xFF\xFF\xFF\xFF", IntType::INT64_LE];
+    }
+
+    /**
+     * @dataProvider writeIntProvider
+     */
+    public function testWriteInt(int $value, string $expected, IntType $type): void
+    {
+        if (!$type->isSupported()) {
+            $this->markTestSkipped(sprintf('IntType %s is not supported on this platform', $type->name));
+        }
+
+        $this->writer->reset();
+        $this->writer->writeInt($type, $value);
+        $this->assertEquals($expected, $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteIntUnsupportedType(): void
+    {
+        // This test only runs on 32-bit systems where 64-bit integers are not supported
+        if (PHP_INT_SIZE >= 8) {
+            $this->markTestSkipped('64-bit integers are supported on this platform');
+        }
+
+        $this->writer->reset();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Cannot write 8-byte integers on 4-byte platform');
+
+        $this->writer->writeInt(IntType::UINT64, 1234);
+    }
+
+    public function testWriteIntOutOfRange(): void
+    {
+        $this->writer->reset();
+
+        // Test uint8 overflow
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Value 256 is out of range for UINT8');
+
+        $this->writer->writeInt(IntType::UINT8, 256);
+    }
+
+    public function testWriteIntNegativeUnsigned(): void
+    {
+        $this->writer->reset();
+
+        // Test negative value for unsigned type
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Value -1 is out of range for UINT8');
+
+        $this->writer->writeInt(IntType::UINT8, -1);
+    }
+
+    public function testWriteIntSignedOverflow(): void
+    {
+        $this->writer->reset();
+
+        // Test int8 overflow
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Value 128 is out of range for INT8');
+
+        $this->writer->writeInt(IntType::INT8, 128);
+    }
+
+    public function testWriteIntSignedUnderflow(): void
+    {
+        $this->writer->reset();
+
+        // Test int8 underflow
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Value -129 is out of range for INT8');
+
+        $this->writer->writeInt(IntType::INT8, -129);
+    }
+
+    public function testWriteUint16BEDeprecated(): void
+    {
+        $this->writer->reset();
+        $this->writer->writeUint16BE(1234);
+        $this->assertEquals("\x04\xD2", $this->writer->getBuffer()->toString());
     }
 }

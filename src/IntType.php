@@ -65,4 +65,44 @@ enum IntType
             default => false,
         };
     }
+
+    public function isSupported(): bool
+    {
+        return $this->bytes() <= PHP_INT_SIZE;
+    }
+
+    public function minValue(): int
+    {
+        if ($this->isSigned()) {
+            $bits = $this->bytes() * 8;
+            if ($bits >= PHP_INT_SIZE * 8) {
+                return PHP_INT_MIN;
+            }
+            return -(1 << ($bits - 1));
+        }
+
+        return 0;
+    }
+
+    public function maxValue(): int
+    {
+        $bits = $this->bytes() * 8;
+
+        if ($this->isSigned()) {
+            if ($bits >= PHP_INT_SIZE * 8) {
+                return PHP_INT_MAX;
+            }
+            return (1 << ($bits - 1)) - 1;
+        } else {
+            if ($bits >= PHP_INT_SIZE * 8) {
+                return PHP_INT_MAX;
+            }
+            return (1 << $bits) - 1;
+        }
+    }
+
+    public function isValid(int $value): bool
+    {
+        return $value >= $this->minValue() && $value <= $this->maxValue();
+    }
 }

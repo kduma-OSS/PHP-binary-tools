@@ -131,6 +131,29 @@ class BinaryReaderTest extends TestCase
         $this->assertSame(strlen($payload), $this->reader->position);
     }
 
+    public function testReadIntUnsupportedSize(): void
+    {
+        // This test only runs on 32-bit systems where 64-bit integers are not supported
+        if (PHP_INT_SIZE >= 8) {
+            $this->markTestSkipped('64-bit integers are supported on this platform');
+        }
+
+        $this->reader = new BinaryReader(BinaryString::fromString("\x01\x23\x45\x67\x89\xAB\xCD\xEF"));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Cannot read 8-byte integers on 4-byte platform');
+
+        $this->reader->readInt(IntType::UINT64);
+    }
+
+    public function testReadUint16BEDeprecated(): void
+    {
+        $this->reader = new BinaryReader(BinaryString::fromString("\x04\xD2"));
+
+        $this->assertSame(1234, $this->reader->readUint16BE());
+        $this->assertSame(2, $this->reader->position);
+    }
+
     public function testPeekByte()
     {
         $this->assertEquals(0x01, $this->reader->peekByte());
@@ -335,6 +358,28 @@ class BinaryReaderTest extends TestCase
         $this->assertEquals(0, $this->reader->position);
         $this->reader->seek(2);
         $this->assertEquals(2, $this->reader->position);
+    }
+
+    public function testSetPosition()
+    {
+        // Test direct position property assignment
+        $this->reader->position = 2;
+        $this->assertEquals(2, $this->reader->position);
+
+        // Test validation through direct assignment
+        try {
+            $this->reader->position = -1;
+            $this->fail("Expected exception not thrown");
+        } catch (\RuntimeException $exception) {
+            $this->assertEquals('Invalid seek position: -1', $exception->getMessage());
+        }
+
+        try {
+            $this->reader->position = 5;
+            $this->fail("Expected exception not thrown");
+        } catch (\RuntimeException $exception) {
+            $this->assertEquals('Invalid seek position: 5', $exception->getMessage());
+        }
     }
 
     public function testGetRemainingBytes()

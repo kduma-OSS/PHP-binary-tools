@@ -92,13 +92,15 @@ final class BinaryReader
 
     public function readInt(IntType $type): int
     {
-        $bytesCount = $type->bytes();
-        if ($bytesCount > PHP_INT_SIZE) {
+        if (!$type->isSupported()) {
+            // @codeCoverageIgnoreStart
             throw new RuntimeException(
-                sprintf('Cannot read %d-byte integers on %d-byte platform', $bytesCount, PHP_INT_SIZE)
+                sprintf('Cannot read %d-byte integers on %d-byte platform', $type->bytes(), PHP_INT_SIZE)
             );
+            // @codeCoverageIgnoreEnd
         }
 
+        $bytesCount = $type->bytes();
         $bytes = $this->readBytes($bytesCount)->value;
 
         if ($type->isLittleEndian()) {
@@ -121,6 +123,12 @@ final class BinaryReader
         }
 
         return $value;
+    }
+
+    #[\Deprecated('Use readInt(IntType::UINT16) instead')]
+    public function readUint16BE(): int
+    {
+        return $this->readInt(IntType::UINT16);
     }
 
     public function readString(int $length): BinaryString
