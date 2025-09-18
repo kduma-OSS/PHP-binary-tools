@@ -23,6 +23,12 @@ final readonly class BinaryString
         return base64_encode($this->value);
     }
 
+    /**
+     * Returns a Base32-encoded string representation of the binary value.
+     *
+     * @param string $alphabet The alphabet to use for Base32 encoding.
+     * @return string The Base32-encoded string.
+     */
     public function toBase32(string $alphabet = Base32::DEFAULT_ALPHABET): string
     {
         return Base32::toBase32($this->value, $alphabet);
