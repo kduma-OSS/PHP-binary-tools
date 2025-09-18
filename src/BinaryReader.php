@@ -111,12 +111,19 @@ final class BinaryReader
 
         if ($type->isSigned()) {
             $bits = $bytesCount * 8;
-            if ($bits < PHP_INT_SIZE * 8) {
+            if ($bits <= PHP_INT_SIZE * 8) {
                 $signBit = 1 << ($bits - 1);
                 if (($value & $signBit) !== 0) {
                     $value -= 1 << $bits;
                 }
             }
+        }
+
+        // Validate unsigned integers that may have wrapped due to PHP integer limits
+        if (!$type->isSigned() && !$type->isValid($value)) {
+            throw new RuntimeException(
+                sprintf('Value exceeds maximum for %s on this platform', $type->name)
+            );
         }
 
         return $value;

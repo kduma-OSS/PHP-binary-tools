@@ -487,4 +487,19 @@ class BinaryReaderTest extends TestCase
         $result = $reader->readBytesWith(IntType::UINT16);
         $this->assertTrue($testData->equals($result));
     }
+
+    public function testReadIntUnsignedOverflow(): void
+    {
+        // Test UINT64 overflow detection on 64-bit systems
+        if (PHP_INT_SIZE < 8) {
+            $this->markTestSkipped('64-bit integers are not supported on this platform');
+        }
+
+        $reader = new BinaryReader(BinaryString::fromHex("FFFFFFFFFFFFFFFF")); // Would wrap to -1
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Value exceeds maximum for UINT64 on this platform');
+
+        $reader->readInt(IntType::UINT64);
+    }
 }
