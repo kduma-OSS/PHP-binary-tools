@@ -50,12 +50,22 @@ final class BinaryReader
         }
     }
 
+    /**
+     * Creates a new reader positioned at the start of the supplied buffer.
+     *
+     * @param BinaryString $data Buffer to read from.
+     */
     public function __construct(BinaryString $data)
     {
         $this->_data = $data->toString();
         $this->length = $data->size();
     }
 
+    /**
+     * Reads the next byte from the stream.
+     *
+     * @throws RuntimeException When no more data is available.
+     */
     public function readByte(): int
     {
         if ($this->position >= $this->length) {
@@ -65,6 +75,12 @@ final class BinaryReader
         return ord($this->_data[$this->position++]);
     }
 
+    /**
+     * Reads exactly $count bytes from the current position.
+     *
+     * @param int $count Number of bytes to read.
+     * @throws RuntimeException When fewer than $count bytes remain.
+     */
     public function readBytes(int $count): BinaryString
     {
         if ($this->position + $count > $this->length) {
@@ -77,6 +93,17 @@ final class BinaryReader
         return BinaryString::fromString($result);
     }
 
+    /**
+     * Reads variable-length data using exactly one of the supplied strategies (length, terminator, optional terminator, or padding).
+     *
+     * @param IntType|null $length Integer type that stores the byte length when using length mode.
+     * @param Terminator|BinaryString|null $terminator Required terminator sequence when using terminator mode.
+     * @param Terminator|BinaryString|null $optional_terminator Terminator sequence that may be absent (fully consumes buffer when missing).
+     * @param Terminator|BinaryString|null $padding Single-byte padding value used for fixed-width fields.
+     * @param int|null $padding_size Total field width in bytes when padding is enabled.
+     * @throws \InvalidArgumentException When mutually exclusive modes are combined or configuration is invalid.
+     * @throws RuntimeException When the data violates the expectations of the chosen mode.
+     */
     public function readBytesWith(
         ?IntType $length = null,
         Terminator|BinaryString|null $terminator = null,
@@ -112,6 +139,12 @@ final class BinaryReader
         return $this->_readWithTerminator($modes[$selectedMode], $selectedMode === 'optional_terminator');
     }
 
+    /**
+     * Reads an integer using the provided {@see IntType} definition.
+     *
+     * @param IntType $type Integer description covering width, signedness, and byte order.
+     * @throws RuntimeException When the type is unsupported or the value cannot be represented.
+     */
     public function readInt(IntType $type): int
     {
         if (!$type->isSupported()) {
@@ -155,6 +188,12 @@ final class BinaryReader
     }
 
 
+    /**
+     * Reads a fixed-length UTF-8 string.
+     *
+     * @param int $length Number of bytes to consume.
+     * @throws RuntimeException When insufficient data remains or decoding fails.
+     */
     public function readString(int $length): BinaryString
     {
         $bytes = $this->readBytes($length);
@@ -168,6 +207,17 @@ final class BinaryReader
         return $bytes;
     }
 
+    /**
+     * Reads a UTF-8 string using one of the variable-length strategies (length, terminator, optional terminator, or padding).
+     *
+     * @param IntType|null $length Integer type specifying the length field when using length mode.
+     * @param Terminator|BinaryString|null $terminator Required terminator.
+     * @param Terminator|BinaryString|null $optional_terminator Optional terminator.
+     * @param Terminator|BinaryString|null $padding Single-byte padding value for fixed-width fields.
+     * @param int|null $padding_size Total field width when padding is enabled.
+     * @throws \InvalidArgumentException When configuration is invalid.
+     * @throws RuntimeException When decoding fails or the data violates mode rules.
+     */
     public function readStringWith(
         ?IntType $length = null,
         Terminator|BinaryString|null $terminator = null,
@@ -186,6 +236,12 @@ final class BinaryReader
         return $string;
     }
 
+    /**
+     * Returns the next byte without advancing the read pointer.
+     *
+     * @return int Unsigned byte value.
+     * @throws RuntimeException When no more data remains.
+     */
     public function peekByte(): int
     {
         if ($this->position >= $this->length) {
@@ -195,6 +251,12 @@ final class BinaryReader
         return ord($this->_data[$this->position]);
     }
 
+    /**
+     * Returns the next $count bytes without advancing the read pointer.
+     *
+     * @param int $count Number of bytes to inspect.
+     * @throws RuntimeException When fewer than $count bytes remain.
+     */
     public function peekBytes(int $count): BinaryString
     {
         if ($this->position + $count > $this->length) {
@@ -204,6 +266,12 @@ final class BinaryReader
         return BinaryString::fromString(substr($this->_data, $this->position, $count));
     }
 
+    /**
+     * Advances the read pointer by $count bytes.
+     *
+     * @param int $count Number of bytes to skip.
+     * @throws RuntimeException When insufficient data remains.
+     */
     public function skip(int $count): void
     {
         if ($this->position + $count > $this->length) {
@@ -213,6 +281,12 @@ final class BinaryReader
         $this->position += $count;
     }
 
+    /**
+     * Moves the read pointer to an absolute offset inside the buffer.
+     *
+     * @param int $position Zero-based offset to seek to.
+     * @throws RuntimeException When the target lies outside the buffer.
+     */
     public function seek(int $position): void
     {
         $this->position = $position;
@@ -221,18 +295,31 @@ final class BinaryReader
     // Deprecated methods
 
     #[Deprecated('Use readInt(IntType::UINT16) instead')]
+    /**
+     * @deprecated Use {@see readInt()} with {@see IntType::UINT16} instead.
+     */
     public function readUint16BE(): int
     {
         return $this->readInt(IntType::UINT16);
     }
 
     #[Deprecated('Use readBytesWith(length: IntType::UINT8) or readBytesWith(length: IntType::UINT16) instead')]
+    /**
+     * @deprecated Use {@see readBytesWith()} with an explicit length type instead.
+     *
+     * @param bool $use16BitLength When true, reads a 16-bit length; otherwise an 8-bit length.
+     */
     public function readBytesWithLength(bool $use16BitLength = false): BinaryString
     {
         return $this->readBytesWith($use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null, null, null);
     }
 
     #[Deprecated('Use readStringWith(length: IntType::UINT8) or readStringWith(length: IntType::UINT16) instead')]
+    /**
+     * @deprecated Use {@see readStringWith()} with an explicit length type instead.
+     *
+     * @param bool $use16BitLength When true, reads a 16-bit length; otherwise an 8-bit length.
+     */
     public function readStringWithLength(bool $use16BitLength = false): BinaryString
     {
         return $this->readStringWith($use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null, null, null);

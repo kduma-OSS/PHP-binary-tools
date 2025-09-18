@@ -8,21 +8,36 @@ final class BinaryWriter
 {
     private string $buffer = '';
 
+    /**
+     * Returns the buffered bytes as a BinaryString without resetting the writer.
+     */
     public function getBuffer(): BinaryString
     {
         return BinaryString::fromString($this->buffer);
     }
 
+    /**
+     * Returns the number of bytes written so far.
+     */
     public function getLength(): int
     {
         return strlen($this->buffer);
     }
 
+    /**
+     * Clears the buffer so subsequent writes start from an empty state.
+     */
     public function reset(): void
     {
         $this->buffer = '';
     }
 
+    /**
+     * Appends a single byte value (0-255) to the buffer.
+     *
+     * @param int $byte Byte value to write.
+     * @throws \InvalidArgumentException When the value is outside the valid byte range.
+     */
     public function writeByte(int $byte): self
     {
         if ($byte < 0 || $byte > 255) {
@@ -33,6 +48,11 @@ final class BinaryWriter
         return $this;
     }
 
+    /**
+     * Appends raw bytes to the buffer.
+     *
+     * @param BinaryString $bytes Data to append.
+     */
     public function writeBytes(BinaryString $bytes): self
     {
         $this->buffer .= $bytes->value;
@@ -40,6 +60,19 @@ final class BinaryWriter
         return $this;
     }
 
+    /**
+     * Writes variable-length data using one of the available strategies: typed length, terminator or fixed padding.
+     *
+     * @note When {@code optional_terminator} is supplied it currently behaves the same as {@code terminator} but emits a notice.
+     *
+     * @param BinaryString $bytes Data to write.
+     * @param IntType|null $length Integer type describing the length field when using length mode.
+     * @param Terminator|BinaryString|null $terminator Mandatory terminator sequence.
+     * @param Terminator|BinaryString|null $optional_terminator Optional terminator sequence (currently emits a notice and behaves like $terminator).
+     * @param Terminator|BinaryString|null $padding Single-byte padding value for fixed-width fields.
+     * @param int|null $padding_size Total field width when padding is enabled.
+     * @throws \InvalidArgumentException When configuration is invalid or the data violates the chosen mode.
+     */
     public function writeBytesWith(
         BinaryString $bytes,
         ?IntType $length = null,
@@ -84,6 +117,14 @@ final class BinaryWriter
         return $this->_writeWithTerminator($bytes, $modes[$modeKey]);
     }
 
+    /**
+     * Serialises an integer according to the provided {@see IntType} definition.
+     *
+     * @param IntType $type Integer description covering width, signedness, and byte order.
+     * @param int $value Value to serialise.
+     * @throws \RuntimeException When the type is unsupported on this platform.
+     * @throws \InvalidArgumentException When the value lies outside the type's range.
+     */
     public function writeInt(IntType $type, int $value): self
     {
         if (!$type->isSupported()) {
@@ -121,6 +162,12 @@ final class BinaryWriter
     }
 
 
+    /**
+     * Writes a UTF-8 validated string without terminator or padding.
+     *
+     * @param BinaryString $string UTF-8 string data to emit.
+     * @throws \InvalidArgumentException When the data is not valid UTF-8.
+     */
     public function writeString(BinaryString $string): self
     {
         if (!mb_check_encoding($string->value, 'UTF-8')) {
@@ -132,6 +179,17 @@ final class BinaryWriter
         return $this;
     }
 
+    /**
+     * Writes a UTF-8 string using one of the variable-length strategies.
+     *
+     * @param BinaryString $string UTF-8 string data to emit.
+     * @param IntType|null $length Integer type describing the length field when using length mode.
+     * @param Terminator|BinaryString|null $terminator Mandatory terminator sequence.
+     * @param Terminator|BinaryString|null $optional_terminator Optional terminator sequence (currently emits a notice and behaves like $terminator).
+     * @param Terminator|BinaryString|null $padding Single-byte padding value for fixed-width fields.
+     * @param int|null $padding_size Total field width when padding is enabled.
+     * @throws \InvalidArgumentException When configuration is invalid or the string is not UTF-8.
+     */
     public function writeStringWith(
         BinaryString $string,
         ?IntType $length = null,
@@ -151,18 +209,35 @@ final class BinaryWriter
     // Deprecated methods
 
     #[Deprecated('Use writeInt(IntType::UINT16, $value) instead')]
+    /**
+     * @deprecated Use {@see writeInt()} with {@see IntType::UINT16} instead.
+     *
+     * @param int $value Unsigned 16-bit value.
+     */
     public function writeUint16BE(int $value): self
     {
         return $this->writeInt(IntType::UINT16, $value);
     }
 
     #[Deprecated('Use writeBytesWith($bytes, length: IntType::UINT8) or writeBytesWith($bytes, length: IntType::UINT16) instead')]
+    /**
+     * @deprecated Use {@see writeBytesWith()} with an explicit length type instead.
+     *
+     * @param BinaryString $bytes Payload to write.
+     * @param bool $use16BitLength When true, emits a 16-bit length; otherwise an 8-bit length.
+     */
     public function writeBytesWithLength(BinaryString $bytes, bool $use16BitLength = false): self
     {
         return $this->writeBytesWith($bytes, $use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null, null, null);
     }
 
     #[Deprecated('Use writeStringWith($string, length: IntType::UINT8) or writeStringWith($string, length: IntType::UINT16) instead')]
+    /**
+     * @deprecated Use {@see writeStringWith()} with an explicit length type instead.
+     *
+     * @param BinaryString $string UTF-8 string to write.
+     * @param bool $use16BitLength When true, emits a 16-bit length; otherwise an 8-bit length.
+     */
     public function writeStringWithLength(BinaryString $string, bool $use16BitLength = false): self
     {
         return $this->writeStringWith($string, $use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null, null, null);
