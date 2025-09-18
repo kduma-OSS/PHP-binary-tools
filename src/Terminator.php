@@ -5,42 +5,110 @@ namespace KDuma\BinaryTools;
 enum Terminator
 {
     // ASCII control characters 0x00-0x1F
-    case NUL;    // 0x00 - Null character
-    case SOH;    // 0x01 - Start of Heading
-    case STX;    // 0x02 - Start of Text
-    case ETX;    // 0x03 - End of Text
-    case EOT;    // 0x04 - End of Transmission
-    case ENQ;    // 0x05 - Enquiry
-    case ACK;    // 0x06 - Acknowledge
-    case BEL;    // 0x07 - Bell
-    case BS;     // 0x08 - Backspace
-    case HT;     // 0x09 - Horizontal Tab
-    case LF;     // 0x0A - Line Feed
-    case VT;     // 0x0B - Vertical Tab
-    case FF;     // 0x0C - Form Feed
-    case CR;     // 0x0D - Carriage Return
-    case SO;     // 0x0E - Shift Out
-    case SI;     // 0x0F - Shift In
-    case DLE;    // 0x10 - Data Link Escape
-    case DC1;    // 0x11 - Device Control 1 (XON)
-    case DC2;    // 0x12 - Device Control 2
-    case DC3;    // 0x13 - Device Control 3 (XOFF)
-    case DC4;    // 0x14 - Device Control 4
-    case NAK;    // 0x15 - Negative Acknowledge
-    case SYN;    // 0x16 - Synchronous Idle
-    case ETB;    // 0x17 - End of Transmission Block
-    case CAN;    // 0x18 - Cancel
-    case EM;     // 0x19 - End of Medium
-    case SUB;    // 0x1A - Substitute
-    case ESC;    // 0x1B - Escape
-    case FS;     // 0x1C - File Separator
-    case GS;     // 0x1D - Group Separator
-    case RS;     // 0x1E - Record Separator
-    case US;     // 0x1F - Unit Separator
-    case SP;     // 0x20 - Space
+
+    /** Null character (0x00) - Commonly used for C-style string termination */
+    case NUL;
+
+    /** Start of Heading (0x01) - Indicates the start of a header block */
+    case SOH;
+
+    /** Start of Text (0x02) - Marks the beginning of text data */
+    case STX;
+
+    /** End of Text (0x03) - Marks the end of text data */
+    case ETX;
+
+    /** End of Transmission (0x04) - Indicates end of data transmission */
+    case EOT;
+
+    /** Enquiry (0x05) - Request for response or status */
+    case ENQ;
+
+    /** Acknowledge (0x06) - Positive acknowledgment signal */
+    case ACK;
+
+    /** Bell (0x07) - Audio alert or notification signal */
+    case BEL;
+
+    /** Backspace (0x08) - Move cursor back one position */
+    case BS;
+
+    /** Horizontal Tab (0x09) - Move to next tab stop */
+    case HT;
+
+    /** Line Feed (0x0A) - Move to next line (Unix line ending) */
+    case LF;
+
+    /** Vertical Tab (0x0B) - Move to next vertical tab position */
+    case VT;
+
+    /** Form Feed (0x0C) - Start new page or clear screen */
+    case FF;
+
+    /** Carriage Return (0x0D) - Return to start of line (classic Mac line ending) */
+    case CR;
+
+    /** Shift Out (0x0E) - Switch to alternate character set */
+    case SO;
+
+    /** Shift In (0x0F) - Switch back to standard character set */
+    case SI;
+
+    /** Data Link Escape (0x10) - Escape sequence for data link protocols */
+    case DLE;
+
+    /** Device Control 1 (0x11) - Also known as XON for flow control */
+    case DC1;
+
+    /** Device Control 2 (0x12) - General device control */
+    case DC2;
+
+    /** Device Control 3 (0x13) - Also known as XOFF for flow control */
+    case DC3;
+
+    /** Device Control 4 (0x14) - General device control */
+    case DC4;
+
+    /** Negative Acknowledge (0x15) - Error or rejection signal */
+    case NAK;
+
+    /** Synchronous Idle (0x16) - Synchronization in data streams */
+    case SYN;
+
+    /** End of Transmission Block (0x17) - End of data block marker */
+    case ETB;
+
+    /** Cancel (0x18) - Cancel current operation */
+    case CAN;
+
+    /** End of Medium (0x19) - End of storage medium */
+    case EM;
+
+    /** Substitute (0x1A) - Replacement for invalid character */
+    case SUB;
+
+    /** Escape (0x1B) - Start of escape sequence */
+    case ESC;
+
+    /** File Separator (0x1C) - Delimiter between files */
+    case FS;
+
+    /** Group Separator (0x1D) - Delimiter between groups of data */
+    case GS;
+
+    /** Record Separator (0x1E) - Delimiter between records */
+    case RS;
+
+    /** Unit Separator (0x1F) - Delimiter between units of data */
+    case US;
+
+    /** Space (0x20) - Standard whitespace character */
+    case SP;
 
     // Common multi-character sequences
-    case CRLF;   // 0x0D 0x0A - Carriage Return + Line Feed
+
+    /** Carriage Return + Line Feed (0x0D 0x0A) - Windows line ending */
+    case CRLF;
 
     public function toBytes(): BinaryString
     {

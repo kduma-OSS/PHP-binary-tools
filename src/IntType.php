@@ -4,19 +4,46 @@ namespace KDuma\BinaryTools;
 
 enum IntType
 {
+    /** Unsigned 8-bit integer (0-255) - Single byte */
     case UINT8;
+
+    /** Signed 8-bit integer (-128 to 127) - Single byte */
     case INT8;
+
+    /** Unsigned 16-bit integer (0-65535) - Big-endian byte order */
     case UINT16;
+
+    /** Signed 16-bit integer (-32768 to 32767) - Big-endian byte order */
     case INT16;
+
+    /** Unsigned 32-bit integer (0-4294967295) - Big-endian byte order */
     case UINT32;
+
+    /** Signed 32-bit integer (-2147483648 to 2147483647) - Big-endian byte order */
     case INT32;
+
+    /** Unsigned 16-bit integer (0-65535) - Little-endian byte order */
     case UINT16_LE;
+
+    /** Signed 16-bit integer (-32768 to 32767) - Little-endian byte order */
     case INT16_LE;
+
+    /** Unsigned 32-bit integer (0-4294967295) - Little-endian byte order */
     case UINT32_LE;
+
+    /** Signed 32-bit integer (-2147483648 to 2147483647) - Little-endian byte order */
     case INT32_LE;
+
+    /** Unsigned 64-bit integer - Big-endian byte order (platform dependent range) */
     case UINT64;
+
+    /** Signed 64-bit integer - Big-endian byte order (platform dependent range) */
     case INT64;
+
+    /** Unsigned 64-bit integer - Little-endian byte order (platform dependent range) */
     case UINT64_LE;
+
+    /** Signed 64-bit integer - Little-endian byte order (platform dependent range) */
     case INT64_LE;
 
     public function bytes(): int
