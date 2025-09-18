@@ -48,6 +48,13 @@ final readonly class BinaryString
         return new static(base64_decode($base64, true));
     }
 
+    /**
+     * Decodes a Base32-encoded string to a BinaryString instance.
+     *
+     * @param string $base32 The Base32-encoded string to decode.
+     * @param string $alphabet The alphabet used for Base32 encoding. Defaults to Base32::DEFAULT_ALPHABET.
+     * @return static A new BinaryString instance containing the decoded binary data.
+     */
     public static function fromBase32(string $base32, string $alphabet = Base32::DEFAULT_ALPHABET): static
     {
         return new static(Base32::fromBase32($base32, $alphabet));
