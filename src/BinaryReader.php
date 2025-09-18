@@ -77,9 +77,9 @@ class BinaryReader
     public function readBytesWithLength(bool $use16BitLength = false): BinaryString
     {
         if ($use16BitLength) {
-            $length = $this->readUint16BE();
+            $length = $this->readInt(IntType::UINT16);
         } else {
-            $length = $this->readByte();
+            $length = $this->readInt(IntType::UINT8);
         }
 
         try {
@@ -90,10 +90,37 @@ class BinaryReader
         }
     }
 
-    public function readUint16BE(): int
+    public function readInt(IntType $type): int
     {
-        $bytes = $this->readBytes(2)->value;
-        return (ord($bytes[0]) << 8) | ord($bytes[1]);
+        $bytesCount = $type->bytes();
+        if ($bytesCount > PHP_INT_SIZE) {
+            throw new RuntimeException(
+                sprintf('Cannot read %d-byte integers on %d-byte platform', $bytesCount, PHP_INT_SIZE)
+            );
+        }
+
+        $bytes = $this->readBytes($bytesCount)->value;
+
+        if ($type->isLittleEndian()) {
+            $bytes = strrev($bytes);
+        }
+
+        $value = 0;
+        for ($i = 0; $i < $bytesCount; $i++) {
+            $value = ($value << 8) | ord($bytes[$i]);
+        }
+
+        if ($type->isSigned()) {
+            $bits = $bytesCount * 8;
+            if ($bits < PHP_INT_SIZE * 8) {
+                $signBit = 1 << ($bits - 1);
+                if (($value & $signBit) !== 0) {
+                    $value -= 1 << $bits;
+                }
+            }
+        }
+
+        return $value;
     }
 
     public function readString(int $length): BinaryString

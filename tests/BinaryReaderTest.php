@@ -4,6 +4,7 @@ namespace KDuma\BinaryTools\Tests;
 
 use KDuma\BinaryTools\BinaryReader;
 use KDuma\BinaryTools\BinaryString;
+use KDuma\BinaryTools\IntType;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -94,11 +95,40 @@ class BinaryReaderTest extends TestCase
         }
     }
 
-    public function testReadUint16BE()
+    public static function readIntProvider(): iterable
     {
-        $this->reader = new BinaryReader(BinaryString::fromString("\x04\xd2"));
-        $this->assertEquals(1234, $this->reader->readUint16BE());
-        $this->assertEquals(2, $this->reader->position);
+        yield 'uint8 max' => [255, "\xFF", IntType::UINT8];
+        yield 'int8 positive' => [127, "\x7F", IntType::INT8];
+        yield 'int8 negative' => [-1, "\xFF", IntType::INT8];
+        yield 'uint16 positive' => [1234, "\x04\xD2", IntType::UINT16];
+        yield 'uint16 little endian positive' => [1234, "\xD2\x04", IntType::UINT16_LE];
+        yield 'int16 positive' => [1234, "\x04\xD2", IntType::INT16];
+        yield 'int16 little endian positive' => [1234, "\xD2\x04", IntType::INT16_LE];
+        yield 'int16 negative' => [-1234, "\xFB\x2E", IntType::INT16];
+        yield 'int16 little endian negative' => [-1234, "\x2E\xFB", IntType::INT16_LE];
+        yield 'uint32 positive' => [0xDEADBEEF, "\xDE\xAD\xBE\xEF", IntType::UINT32];
+        yield 'uint32 little endian positive' => [0xDEADBEEF, "\xEF\xBE\xAD\xDE", IntType::UINT32_LE];
+        yield 'int32 positive' => [1234, "\x00\x00\x04\xD2", IntType::INT32];
+        yield 'int32 little endian positive' => [1234, "\xD2\x04\x00\x00", IntType::INT32_LE];
+        yield 'int32 negative' => [-1234, "\xFF\xFF\xFB\x2E", IntType::INT32];
+        yield 'int32 little endian negative' => [-1234, "\x2E\xFB\xFF\xFF", IntType::INT32_LE];
+        yield 'uint64 positive' => [0x0123456789ABCDEF, "\x01\x23\x45\x67\x89\xAB\xCD\xEF", IntType::UINT64];
+        yield 'uint64 little endian positive' => [0x0123456789ABCDEF, "\xEF\xCD\xAB\x89\x67\x45\x23\x01", IntType::UINT64_LE];
+        yield 'int64 positive' => [1234, "\x00\x00\x00\x00\x00\x00\x04\xD2", IntType::INT64];
+        yield 'int64 little endian positive' => [1234, "\xD2\x04\x00\x00\x00\x00\x00\x00", IntType::INT64_LE];
+        yield 'int64 negative' => [-1234, "\xFF\xFF\xFF\xFF\xFF\xFF\xFB\x2E", IntType::INT64];
+        yield 'int64 little endian negative' => [-1234, "\x2E\xFB\xFF\xFF\xFF\xFF\xFF\xFF", IntType::INT64_LE];
+    }
+
+    /**
+     * @dataProvider readIntProvider
+     */
+    public function testReadInt(int $expected, string $payload, IntType $type): void
+    {
+        $this->reader = new BinaryReader(BinaryString::fromString($payload));
+
+        $this->assertSame($expected, $this->reader->readInt($type));
+        $this->assertSame(strlen($payload), $this->reader->position);
     }
 
     public function testPeekByte()
