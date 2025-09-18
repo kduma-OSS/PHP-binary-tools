@@ -23,6 +23,11 @@ readonly class BinaryString
         return base64_encode($this->value);
     }
 
+    public function toBase32(string $alphabet = Base32::DEFAULT_ALPHABET): string
+    {
+        return Base32::toBase32($this->value, $alphabet);
+    }
+
     public function size(): int
     {
         return strlen($this->value);
@@ -41,6 +46,11 @@ readonly class BinaryString
     public static function fromBase64(string $base64): static
     {
         return new static(base64_decode($base64, true));
+    }
+
+    public static function fromBase32(string $base32, string $alphabet = Base32::DEFAULT_ALPHABET): static
+    {
+        return new static(Base32::fromBase32($base32, $alphabet));
     }
 
     public function equals(BinaryString $other): bool
