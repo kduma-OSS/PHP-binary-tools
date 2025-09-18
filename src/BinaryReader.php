@@ -23,7 +23,9 @@ final class BinaryReader
         }
         set {
             if ($value < 0 || $value > $this->length) {
-                throw new RuntimeException('Invalid seek position: ' . $value);
+                throw new RuntimeException(
+                    sprintf('Invalid seek position: %d (valid range: 0-%d)', $value, $this->length)
+                );
             }
 
             $this->position = $value;

@@ -342,7 +342,7 @@ class BinaryReaderTest extends TestCase
             $this->reader->seek(5);
             $this->fail("Expected exception not thrown");
         } catch (\RuntimeException $exception) {
-            $this->assertEquals('Invalid seek position: 5', $exception->getMessage());
+            $this->assertEquals('Invalid seek position: 5 (valid range: 0-4)', $exception->getMessage());
             $this->assertEquals(4, $this->reader->position);
         }
 
@@ -350,7 +350,7 @@ class BinaryReaderTest extends TestCase
             $this->reader->seek(-1);
             $this->fail("Expected exception not thrown");
         } catch (\RuntimeException $exception) {
-            $this->assertEquals('Invalid seek position: -1', $exception->getMessage());
+            $this->assertEquals('Invalid seek position: -1 (valid range: 0-4)', $exception->getMessage());
             $this->assertEquals(4, $this->reader->position);
         }
     }
@@ -373,14 +373,14 @@ class BinaryReaderTest extends TestCase
             $this->reader->position = -1;
             $this->fail("Expected exception not thrown");
         } catch (\RuntimeException $exception) {
-            $this->assertEquals('Invalid seek position: -1', $exception->getMessage());
+            $this->assertEquals('Invalid seek position: -1 (valid range: 0-4)', $exception->getMessage());
         }
 
         try {
             $this->reader->position = 5;
             $this->fail("Expected exception not thrown");
         } catch (\RuntimeException $exception) {
-            $this->assertEquals('Invalid seek position: 5', $exception->getMessage());
+            $this->assertEquals('Invalid seek position: 5 (valid range: 0-4)', $exception->getMessage());
         }
     }
 
