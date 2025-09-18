@@ -32,7 +32,8 @@
         "test": "phpunit",
         "test-coverage": "phpunit --coverage-html coverage",
         "lint": "pint --test",
-        "fix": "pint"
+        "fix": "pint",
+        "docs": "php generate-api-docs.php > API.md"
     },
     "config": {
         "optimize-autoloader": true,
