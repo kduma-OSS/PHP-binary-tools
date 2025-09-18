@@ -22,7 +22,7 @@ class Base32Test extends TestCase
     }
 
     /**
-     * RFC 4648 test vectors (uppercase, no padding) adapted to unpadded form.
+     * RFC 4648 test vectors (uppercase, unpadded form).
      *
      * @return array<string, array{plain: string, base32: string}>
      */
