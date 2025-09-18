@@ -4,7 +4,7 @@ namespace KDuma\BinaryTools;
 
 use RuntimeException;
 
-class BinaryReader
+final class BinaryReader
 {
     private string $_data;
 

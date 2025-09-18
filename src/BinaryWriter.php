@@ -2,7 +2,7 @@
 
 namespace KDuma\BinaryTools;
 
-class BinaryWriter
+final class BinaryWriter
 {
     private string $buffer = '';
 
