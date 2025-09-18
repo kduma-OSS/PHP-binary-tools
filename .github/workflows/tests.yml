@@ -80,7 +80,7 @@ jobs:
           fi
 
       - name: Comment on PR (Failure)
-        if: failure() && github.event_name == 'pull_request'
+        if: (steps.lint.outcome == 'failure' || steps.coverage.outputs.coverage_failed == 'true') && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
