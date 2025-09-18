@@ -70,7 +70,13 @@ final class Base32
             }
 
             if (!isset($map[$char])) {
-                return '';
+                throw new InvalidArgumentException(
+                    sprintf(
+                        "Invalid character '%s' at position %d in Base32 input.",
+                        $char,
+                        $i
+                    )
+                );
             }
 
             $buffer = ($buffer << 5) | $map[$char];
