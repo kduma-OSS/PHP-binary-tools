@@ -87,12 +87,6 @@ final class BinaryReader
         }
     }
 
-    #[\Deprecated('Use readBytesWith(IntType::UINT8) or readBytesWith(IntType::UINT16) instead')]
-    public function readBytesWithLength(bool $use16BitLength = false): BinaryString
-    {
-        return $this->readBytesWith($use16BitLength ? IntType::UINT16 : IntType::UINT8);
-    }
-
     public function readInt(IntType $type): int
     {
         if (!$type->isSupported()) {
@@ -128,11 +122,6 @@ final class BinaryReader
         return $value;
     }
 
-    #[Deprecated('Use readInt(IntType::UINT16) instead')]
-    public function readUint16BE(): int
-    {
-        return $this->readInt(IntType::UINT16);
-    }
 
     public function readString(int $length): BinaryString
     {
@@ -157,12 +146,6 @@ final class BinaryReader
         }
 
         return $string;
-    }
-
-    #[\Deprecated('Use readStringWith(IntType::UINT8) or readStringWith(IntType::UINT16) instead')]
-    public function readStringWithLength(bool $use16BitLength = false): BinaryString
-    {
-        return $this->readStringWith($use16BitLength ? IntType::UINT16 : IntType::UINT8);
     }
 
     public function peekByte(): int
@@ -195,5 +178,25 @@ final class BinaryReader
     public function seek(int $position): void
     {
         $this->position = $position;
+    }
+
+    // Deprecated methods
+
+    #[Deprecated('Use readInt(IntType::UINT16) instead')]
+    public function readUint16BE(): int
+    {
+        return $this->readInt(IntType::UINT16);
+    }
+
+    #[Deprecated('Use readBytesWith(length: IntType::UINT8) or readBytesWith(length: IntType::UINT16) instead')]
+    public function readBytesWithLength(bool $use16BitLength = false): BinaryString
+    {
+        return $this->readBytesWith($use16BitLength ? IntType::UINT16 : IntType::UINT8);
+    }
+
+    #[Deprecated('Use readStringWith(length: IntType::UINT8) or readStringWith(length: IntType::UINT16) instead')]
+    public function readStringWithLength(bool $use16BitLength = false): BinaryString
+    {
+        return $this->readStringWith($use16BitLength ? IntType::UINT16 : IntType::UINT8);
     }
 }

@@ -55,12 +55,6 @@ final class BinaryWriter
         return $this;
     }
 
-    #[\Deprecated('Use writeBytesWith($bytes, IntType::UINT8) or writeBytesWith($bytes, IntType::UINT16) instead')]
-    public function writeBytesWithLength(BinaryString $bytes, bool $use16BitLength = false): self
-    {
-        return $this->writeBytesWith($bytes, $use16BitLength ? IntType::UINT16 : IntType::UINT8);
-    }
-
     public function writeInt(IntType $type, int $value): self
     {
         if (!$type->isSupported()) {
@@ -97,11 +91,6 @@ final class BinaryWriter
         return $this;
     }
 
-    #[Deprecated('Use writeInt(IntType::UINT16, $value) instead')]
-    public function writeUint16BE(int $value): self
-    {
-        return $this->writeInt(IntType::UINT16, $value);
-    }
 
     public function writeString(BinaryString $string): self
     {
@@ -125,7 +114,21 @@ final class BinaryWriter
         return $this;
     }
 
-    #[\Deprecated('Use writeStringWith($string, IntType::UINT8) or writeStringWith($string, IntType::UINT16) instead')]
+    // Deprecated methods
+
+    #[Deprecated('Use writeInt(IntType::UINT16, $value) instead')]
+    public function writeUint16BE(int $value): self
+    {
+        return $this->writeInt(IntType::UINT16, $value);
+    }
+
+    #[Deprecated('Use writeBytesWith($bytes, length: IntType::UINT8) or writeBytesWith($bytes, length: IntType::UINT16) instead')]
+    public function writeBytesWithLength(BinaryString $bytes, bool $use16BitLength = false): self
+    {
+        return $this->writeBytesWith($bytes, $use16BitLength ? IntType::UINT16 : IntType::UINT8);
+    }
+
+    #[Deprecated('Use writeStringWith($string, length: IntType::UINT8) or writeStringWith($string, length: IntType::UINT16) instead')]
     public function writeStringWithLength(BinaryString $string, bool $use16BitLength = false): self
     {
         return $this->writeStringWith($string, $use16BitLength ? IntType::UINT16 : IntType::UINT8);
