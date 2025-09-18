@@ -38,7 +38,7 @@ foreach ($classes as $className) {
 
     // Add methods to TOC
     $methods = $reflection->getMethods(\ReflectionMethod::IS_PUBLIC);
-    $publicMethods = array_filter($methods, fn($method) => !$method->isConstructor() && !$method->isDestructor());
+    $publicMethods = array_filter($methods, fn ($method) => !$method->isConstructor() && !$method->isDestructor());
     foreach ($publicMethods as $method) {
         $methodName = $method->getName();
         $paramCount = count($method->getParameters());
@@ -155,7 +155,7 @@ foreach ($classes as $className) {
 
     // Public methods
     $methods = $reflection->getMethods(\ReflectionMethod::IS_PUBLIC);
-    $publicMethods = array_filter($methods, fn($method) => !$method->isConstructor() && !$method->isDestructor());
+    $publicMethods = array_filter($methods, fn ($method) => !$method->isConstructor() && !$method->isDestructor());
 
     if (!empty($publicMethods)) {
         $markdown .= "#### Methods\n\n";
@@ -308,7 +308,7 @@ foreach ($classes as $className) {
 }
 
 // Add Enums section
-$enumClasses = array_filter($classes, function($className) {
+$enumClasses = array_filter($classes, function ($className) {
     $reflection = new \ReflectionClass($className);
     return $reflection->isEnum();
 });

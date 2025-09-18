@@ -80,8 +80,7 @@ final class BinaryWriter
         Terminator|BinaryString|null $optional_terminator = null,
         Terminator|BinaryString|null $padding = null,
         ?int $padding_size = null,
-    ): self
-    {
+    ): self {
         if ($padding === null && $padding_size !== null) {
             $padding = Terminator::NUL;
         }
@@ -197,8 +196,7 @@ final class BinaryWriter
         Terminator|BinaryString|null $optional_terminator = null,
         Terminator|BinaryString|null $padding = null,
         ?int $padding_size = null,
-    ): self
-    {
+    ): self {
         if (!mb_check_encoding($string->value, 'UTF-8')) {
             throw new \InvalidArgumentException('String must be valid UTF-8');
         }
