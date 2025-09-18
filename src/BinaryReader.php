@@ -75,15 +75,28 @@ final class BinaryReader
         return BinaryString::fromString($result);
     }
 
-    public function readBytesWith(IntType $length): BinaryString
-    {
-        $dataLength = $this->readInt($length);
+    public function readBytesWith(
+        ?IntType $length = null,
+        Terminator|BinaryString|null $terminator = null,
+        Terminator|BinaryString|null $optional_terminator = null,
+    ): BinaryString {
+        $modes = array_filter([
+            'length' => $length,
+            'terminator' => $terminator,
+            'optional_terminator' => $optional_terminator,
+        ], static fn ($value) => $value !== null);
 
-        try {
-            return $this->readBytes($dataLength);
-        } catch (\RuntimeException $exception) {
-            $this->position -= $length->bytes();
-            throw $exception;
+        if (count($modes) !== 1) {
+            throw new \InvalidArgumentException('Exactly one of length terminator or optional_terminator must be provided');
+        }
+
+        $selectedMode = array_key_first($modes);
+
+
+        if ($selectedMode === 'length') {
+            return $this->_readWithLength($length);
+        } elseif ($selectedMode === 'terminator' || $selectedMode === 'optional_terminator') {
+            return $this->_readWithTerminator($modes[$selectedMode], $selectedMode === 'optional_terminator');
         }
     }
 
@@ -143,12 +156,16 @@ final class BinaryReader
         return $bytes;
     }
 
-    public function readStringWith(IntType $length): BinaryString
-    {
-        $string = $this->readBytesWith($length);
+    public function readStringWith(
+        ?IntType $length = null,
+        Terminator|BinaryString|null $terminator = null,
+        Terminator|BinaryString|null $optional_terminator = null,
+    ): BinaryString {
+        $startPosition = $this->position;
+        $string = $this->readBytesWith($length, $terminator, $optional_terminator);
 
         if (!mb_check_encoding($string->value, 'UTF-8')) {
-            $this->position -= $length->bytes() + $string->size();
+            $this->position = $startPosition;
             throw new RuntimeException('Invalid UTF-8 string');
         }
 
@@ -198,12 +215,57 @@ final class BinaryReader
     #[Deprecated('Use readBytesWith(length: IntType::UINT8) or readBytesWith(length: IntType::UINT16) instead')]
     public function readBytesWithLength(bool $use16BitLength = false): BinaryString
     {
-        return $this->readBytesWith($use16BitLength ? IntType::UINT16 : IntType::UINT8);
+        return $this->readBytesWith($use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null);
     }
 
     #[Deprecated('Use readStringWith(length: IntType::UINT8) or readStringWith(length: IntType::UINT16) instead')]
     public function readStringWithLength(bool $use16BitLength = false): BinaryString
     {
-        return $this->readStringWith($use16BitLength ? IntType::UINT16 : IntType::UINT8);
+        return $this->readStringWith($use16BitLength ? IntType::UINT16 : IntType::UINT8, null, null);
+    }
+
+    // Private methods
+
+    private function _readWithLength(IntType $length): BinaryString
+    {
+        $dataLength = $this->readInt($length);
+
+        try {
+            return $this->readBytes($dataLength);
+        } catch (\RuntimeException $exception) {
+            $this->position -= $length->bytes();
+            throw $exception;
+        }
+    }
+
+    private function _readWithTerminator(Terminator|BinaryString $terminator, bool $terminatorIsOptional): BinaryString
+    {
+        $terminatorBytes = $terminator instanceof Terminator ? $terminator->toBytes() : $terminator;
+        $terminatorSize = $terminatorBytes->size();
+
+        if ($terminatorSize === 0) {
+            if ($terminatorIsOptional) {
+                return BinaryString::fromString('');
+            }
+
+            throw new \InvalidArgumentException('Terminator cannot be empty when required');
+        }
+
+        $remainingData = substr($this->_data, $this->position);
+        $terminatorPosition = strpos($remainingData, $terminatorBytes->value);
+
+        if ($terminatorPosition === false) {
+            if ($terminatorIsOptional) {
+                $this->position = $this->length;
+                return BinaryString::fromString($remainingData);
+            }
+
+            throw new RuntimeException('Terminator not found before end of data');
+        }
+
+        $result = substr($remainingData, 0, $terminatorPosition);
+        $this->position += $terminatorPosition + $terminatorSize;
+
+        return BinaryString::fromString($result);
     }
 }

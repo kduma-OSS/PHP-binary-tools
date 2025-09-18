@@ -70,4 +70,13 @@ final readonly class BinaryString
     {
         return hash_equals($this->value, $other->value);
     }
+
+    public function contains(BinaryString $needle): bool
+    {
+        if ($needle->size() === 0) {
+            return true;
+        }
+
+        return str_contains($this->value, $needle->value);
+    }
 }

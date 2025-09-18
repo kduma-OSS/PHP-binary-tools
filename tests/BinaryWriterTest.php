@@ -5,6 +5,7 @@ namespace KDuma\BinaryTools\Tests;
 use KDuma\BinaryTools\BinaryString;
 use KDuma\BinaryTools\BinaryWriter;
 use KDuma\BinaryTools\IntType;
+use KDuma\BinaryTools\Terminator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -361,5 +362,132 @@ class BinaryWriterTest extends TestCase
         $this->writer->reset();
         $this->writer->writeStringWithLength(BinaryString::fromString("abc"), true);
         $this->assertEquals("\x00\x03abc", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteBytesWithTerminatorNUL(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString("Hello");
+        $this->writer->writeBytesWith($data, terminator: Terminator::NUL);
+        $this->assertEquals("Hello\x00", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteBytesWithTerminatorGS(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString("World");
+        $this->writer->writeBytesWith($data, terminator: Terminator::GS);
+        $this->assertEquals("World\x1D", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteBytesWithCustomTerminator(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString("test");
+        $customTerminator = BinaryString::fromString("\r\n");
+        $this->writer->writeBytesWith($data, terminator: $customTerminator);
+        $this->assertEquals("test\r\n", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteBytesWithTerminatorRejectsEmbeddedTerminator(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString("Hello\x00World");
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Data contains terminator sequence');
+
+        $this->writer->writeBytesWith($data, terminator: Terminator::NUL);
+    }
+
+    public function testWriteStringWithTerminatorNUL(): void
+    {
+        $this->writer->reset();
+        $string = BinaryString::fromString("Hello World");
+        $this->writer->writeStringWith($string, terminator: Terminator::NUL);
+        $this->assertEquals("Hello World\x00", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteStringWithCustomTerminator(): void
+    {
+        $this->writer->reset();
+        $string = BinaryString::fromString("Line 1");
+        $newlineTerminator = BinaryString::fromString("\n");
+        $this->writer->writeStringWith($string, terminator: $newlineTerminator);
+        $this->assertEquals("Line 1\n", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteBytesWithParameterValidation(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString("test");
+
+        // Test both parameters provided
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Exactly one of length or terminator must be provided');
+
+        $this->writer->writeBytesWith($data, IntType::UINT8, Terminator::NUL);
+    }
+
+    public function testWriteBytesWithNoParameters(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString("test");
+
+        // Test no parameters provided
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Exactly one of length or terminator must be provided');
+
+        $this->writer->writeBytesWith($data);
+    }
+
+    public function testWriteStringWithInvalidUTF8AndTerminator(): void
+    {
+        $this->writer->reset();
+        $invalidUTF8 = BinaryString::fromString("\xFF\xFE");
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('String must be valid UTF-8');
+
+        $this->writer->writeStringWith($invalidUTF8, terminator: Terminator::NUL);
+    }
+
+    public function testWriteBytesWithCRLFTerminator(): void
+    {
+        $this->writer->reset();
+        $data = BinaryString::fromString("HTTP/1.1 200 OK");
+        $this->writer->writeBytesWith($data, terminator: Terminator::CRLF);
+        $this->assertEquals("HTTP/1.1 200 OK\x0D\x0A", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteStringWithCommonControlCharacters(): void
+    {
+        $this->writer->reset();
+
+        // Test with Line Feed
+        $this->writer->writeStringWith(BinaryString::fromString("Unix line"), terminator: Terminator::LF);
+        $this->assertEquals("Unix line\x0A", $this->writer->getBuffer()->toString());
+
+        // Test with Tab separator
+        $this->writer->reset();
+        $this->writer->writeBytesWith(BinaryString::fromString("field1"), terminator: Terminator::HT);
+        $this->assertEquals("field1\x09", $this->writer->getBuffer()->toString());
+
+        // Test with Record Separator
+        $this->writer->reset();
+        $this->writer->writeStringWith(BinaryString::fromString("record"), terminator: Terminator::RS);
+        $this->assertEquals("record\x1E", $this->writer->getBuffer()->toString());
+    }
+
+    public function testWriteBytesWithProtocolSpecificTerminators(): void
+    {
+        $this->writer->reset();
+
+        // STX/ETX for text boundaries
+        $this->writer->writeBytesWith(BinaryString::fromString(""), terminator: Terminator::STX);
+        $this->writer->writeBytesWith(BinaryString::fromString("Important Message"), terminator: Terminator::ETX);
+
+        $expected = "\x02Important Message\x03";
+        $this->assertEquals($expected, $this->writer->getBuffer()->toString());
     }
 }

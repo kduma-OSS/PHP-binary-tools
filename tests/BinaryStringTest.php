@@ -65,6 +65,14 @@ class BinaryStringTest extends TestCase
         $this->assertFalse($this->binaryString->equals(BinaryString::fromString("\xFF\xFF\xFF\xFF")));
     }
 
+    public function testContains(): void
+    {
+        $this->assertTrue($this->binaryString->contains(BinaryString::fromString("\x01")));
+        $this->assertTrue($this->binaryString->contains(BinaryString::fromString("\x02\x03")));
+        $this->assertFalse($this->binaryString->contains(BinaryString::fromString("\xFF")));
+        $this->assertTrue($this->binaryString->contains(BinaryString::fromString('')));
+    }
+
     public function testToBase32()
     {
         $binaryString = BinaryString::fromString("foobar");

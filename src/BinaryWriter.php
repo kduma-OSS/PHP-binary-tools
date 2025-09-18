@@ -40,19 +40,17 @@ final class BinaryWriter
         return $this;
     }
 
-    public function writeBytesWith(BinaryString $bytes, IntType $length): self
+    public function writeBytesWith(BinaryString $bytes, ?IntType $length = null, Terminator|BinaryString|null $terminator = null): self
     {
-        $dataLength = $bytes->size();
-        $maxLength = $length->maxValue();
-
-        if ($dataLength > $maxLength) {
-            throw new \InvalidArgumentException("Data too long for {$length->name} length field (max: {$maxLength})");
+        if (($length === null && $terminator === null) || ($length !== null && $terminator !== null)) {
+            throw new \InvalidArgumentException('Exactly one of length or terminator must be provided');
         }
 
-        $this->writeInt($length, $dataLength);
-        $this->writeBytes($bytes);
-
-        return $this;
+        if ($length !== null) {
+            return $this->_writeWithLength($bytes, $length);
+        } else {
+            return $this->_writeWithTerminator($bytes, $terminator);
+        }
     }
 
     public function writeInt(IntType $type, int $value): self
@@ -103,15 +101,13 @@ final class BinaryWriter
         return $this;
     }
 
-    public function writeStringWith(BinaryString $string, IntType $length): self
+    public function writeStringWith(BinaryString $string, ?IntType $length = null, Terminator|BinaryString|null $terminator = null): self
     {
         if (!mb_check_encoding($string->value, 'UTF-8')) {
             throw new \InvalidArgumentException('String must be valid UTF-8');
         }
 
-        $this->writeBytesWith($string, $length);
-
-        return $this;
+        return $this->writeBytesWith($string, $length, $terminator);
     }
 
     // Deprecated methods
@@ -125,12 +121,43 @@ final class BinaryWriter
     #[Deprecated('Use writeBytesWith($bytes, length: IntType::UINT8) or writeBytesWith($bytes, length: IntType::UINT16) instead')]
     public function writeBytesWithLength(BinaryString $bytes, bool $use16BitLength = false): self
     {
-        return $this->writeBytesWith($bytes, $use16BitLength ? IntType::UINT16 : IntType::UINT8);
+        return $this->writeBytesWith($bytes, $use16BitLength ? IntType::UINT16 : IntType::UINT8, null);
     }
 
     #[Deprecated('Use writeStringWith($string, length: IntType::UINT8) or writeStringWith($string, length: IntType::UINT16) instead')]
     public function writeStringWithLength(BinaryString $string, bool $use16BitLength = false): self
     {
-        return $this->writeStringWith($string, $use16BitLength ? IntType::UINT16 : IntType::UINT8);
+        return $this->writeStringWith($string, $use16BitLength ? IntType::UINT16 : IntType::UINT8, null);
+    }
+
+    // Private methods
+
+    private function _writeWithLength(BinaryString $data, IntType $length): self
+    {
+        $dataLength = $data->size();
+        $maxLength = $length->maxValue();
+
+        if ($dataLength > $maxLength) {
+            throw new \InvalidArgumentException("Data too long for {$length->name} length field (max: {$maxLength})");
+        }
+
+        $this->writeInt($length, $dataLength);
+        $this->writeBytes($data);
+
+        return $this;
+    }
+
+    private function _writeWithTerminator(BinaryString $data, Terminator|BinaryString $terminator): self
+    {
+        $terminatorBytes = $terminator instanceof Terminator ? $terminator->toBytes() : $terminator;
+
+        if ($data->contains($terminatorBytes)) {
+            throw new \InvalidArgumentException('Data contains terminator sequence');
+        }
+
+        $this->writeBytes($data);
+        $this->writeBytes($terminatorBytes);
+
+        return $this;
     }
 }

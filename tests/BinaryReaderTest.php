@@ -5,6 +5,7 @@ namespace KDuma\BinaryTools\Tests;
 use KDuma\BinaryTools\BinaryReader;
 use KDuma\BinaryTools\BinaryString;
 use KDuma\BinaryTools\IntType;
+use KDuma\BinaryTools\Terminator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -501,5 +502,245 @@ class BinaryReaderTest extends TestCase
         $this->expectExceptionMessage('Value exceeds maximum for UINT64 on this platform');
 
         $reader->readInt(IntType::UINT64);
+    }
+
+    public function testReadBytesWithTerminatorNUL(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("Hello\x00World"));
+        $result = $reader->readBytesWith(terminator: Terminator::NUL);
+        $this->assertEquals("Hello", $result->toString());
+        $this->assertEquals(6, $reader->position); // 5 bytes + 1 terminator consumed
+    }
+
+    public function testReadBytesWithTerminatorGS(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("Data\x1DMore"));
+        $result = $reader->readBytesWith(terminator: Terminator::GS);
+        $this->assertEquals("Data", $result->toString());
+        $this->assertEquals(5, $reader->position); // 4 bytes + 1 terminator consumed
+    }
+
+    public function testReadBytesWithCustomTerminator(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("Line 1\r\nLine 2"));
+        $customTerminator = BinaryString::fromString("\r\n");
+        $result = $reader->readBytesWith(terminator: $customTerminator);
+        $this->assertEquals("Line 1", $result->toString());
+        $this->assertEquals(8, $reader->position); // 6 bytes + 2 terminator bytes consumed
+    }
+
+    public function testReadStringWithTerminatorNUL(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("Hello World\x00Rest"));
+        $result = $reader->readStringWith(terminator: Terminator::NUL);
+        $this->assertEquals("Hello World", $result->toString());
+        $this->assertEquals(12, $reader->position); // 11 bytes + 1 terminator consumed
+    }
+
+    public function testReadBytesWithTerminatorAtStart(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("\x00Data"));
+        $result = $reader->readBytesWith(terminator: Terminator::NUL);
+        $this->assertEquals("", $result->toString());
+        $this->assertEquals(1, $reader->position); // Just the terminator consumed
+    }
+
+    public function testReadBytesWithMultipleTerminators(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("First\x00\x00Second"));
+
+        // First read should stop at first terminator
+        $result1 = $reader->readBytesWith(terminator: Terminator::NUL);
+        $this->assertEquals("First", $result1->toString());
+        $this->assertEquals(6, $reader->position);
+
+        // Second read should get empty string (next char is terminator)
+        $result2 = $reader->readBytesWith(terminator: Terminator::NUL);
+        $this->assertEquals("", $result2->toString());
+        $this->assertEquals(7, $reader->position);
+    }
+
+    public function testReadBytesWithNoTerminatorFound(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("NoTerminator"));
+        $result = $reader->readBytesWith(optional_terminator: Terminator::NUL);
+        $this->assertEquals("NoTerminator", $result->toString());
+        $this->assertEquals(12, $reader->position); // All data consumed, no terminator found
+    }
+
+    public function testReadBytesWithMissingRequiredTerminatorThrows(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("Incomplete"));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Terminator not found before end of data');
+
+        $reader->readBytesWith(terminator: Terminator::NUL);
+    }
+
+    public function testReadStringWithMissingRequiredTerminatorThrows(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("No terminator"));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Terminator not found before end of data');
+
+        $reader->readStringWith(terminator: Terminator::NUL);
+    }
+
+    public function testReadStringWithTerminatorParameterValidation(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("test"));
+
+        // Test both parameters provided
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Exactly one of length terminator or optional_terminator must be provided');
+
+        $reader->readStringWith(IntType::UINT8, Terminator::NUL);
+    }
+
+    public function testReadBytesWithNoParameters(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("test"));
+
+        // Test no parameters provided
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Exactly one of length terminator or optional_terminator must be provided');
+
+        $reader->readBytesWith();
+    }
+
+    public function testReadBytesWithBothTerminatorsProvided(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("data"));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Exactly one of length terminator or optional_terminator must be provided');
+
+        $reader->readBytesWith(terminator: Terminator::NUL, optional_terminator: Terminator::NUL);
+    }
+
+    public function testReadStringWithInvalidUTF8AndTerminator(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("\xFF\xFE\x00"));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Invalid UTF-8 string');
+
+        $reader->readStringWith(terminator: Terminator::NUL);
+    }
+
+    public function testReadStringWithOptionalTerminatorUntilEnd(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("Partial"));
+        $result = $reader->readStringWith(optional_terminator: Terminator::NUL);
+
+        $this->assertEquals("Partial", $result->toString());
+        $this->assertEquals(7, $reader->position);
+    }
+
+    public function testRoundTripWithTerminators(): void
+    {
+        $writer = new \KDuma\BinaryTools\BinaryWriter();
+        $testData = BinaryString::fromString("Hello, World!");
+
+        // Test NUL terminator round trip
+        $writer->writeBytesWith($testData, terminator: Terminator::NUL);
+        $reader = new BinaryReader($writer->getBuffer());
+        $result = $reader->readBytesWith(terminator: Terminator::NUL);
+        $this->assertTrue($testData->equals($result));
+
+        // Test custom terminator round trip
+        $writer->reset();
+        $customTerminator = BinaryString::fromString("||");
+        $writer->writeStringWith($testData, terminator: $customTerminator);
+        $reader = new BinaryReader($writer->getBuffer());
+        $result = $reader->readStringWith(terminator: $customTerminator);
+        $this->assertTrue($testData->equals($result));
+    }
+
+    public function testReadBytesWithCRLFTerminator(): void
+    {
+        $reader = new BinaryReader(BinaryString::fromString("HTTP/1.1 200 OK\x0D\x0AContent-Type: text/html"));
+        $result = $reader->readBytesWith(terminator: Terminator::CRLF);
+        $this->assertEquals("HTTP/1.1 200 OK", $result->toString());
+        $this->assertEquals(17, $reader->position); // 15 chars + 2 CRLF bytes consumed
+    }
+
+    public function testReadStringWithCommonControlCharacters(): void
+    {
+        // Test with Line Feed
+        $reader = new BinaryReader(BinaryString::fromString("Unix line\x0ANext line"));
+        $result = $reader->readStringWith(terminator: Terminator::LF);
+        $this->assertEquals("Unix line", $result->toString());
+        $this->assertEquals(10, $reader->position);
+
+        // Test with Tab separator
+        $reader = new BinaryReader(BinaryString::fromString("field1\x09field2\x09field3"));
+        $field1 = $reader->readBytesWith(terminator: Terminator::HT);
+        $field2 = $reader->readBytesWith(terminator: Terminator::HT);
+        $this->assertEquals("field1", $field1->toString());
+        $this->assertEquals("field2", $field2->toString());
+
+        // Test with Record Separator
+        $reader = new BinaryReader(BinaryString::fromString("record1\x1Erecord2\x1E"));
+        $rec1 = $reader->readStringWith(terminator: Terminator::RS);
+        $rec2 = $reader->readStringWith(terminator: Terminator::RS);
+        $this->assertEquals("record1", $rec1->toString());
+        $this->assertEquals("record2", $rec2->toString());
+    }
+
+    public function testReadBytesWithProtocolSpecificTerminators(): void
+    {
+        // Test STX/ETX boundaries
+        $reader = new BinaryReader(BinaryString::fromString("\x02Important Message\x03More data"));
+
+        // Skip STX
+        $stx = $reader->readBytesWith(terminator: Terminator::STX);
+        $this->assertEquals("", $stx->toString());
+
+        // Read message until ETX
+        $message = $reader->readBytesWith(terminator: Terminator::ETX);
+        $this->assertEquals("Important Message", $message->toString());
+
+        // Test XON/XOFF flow control characters
+        $reader = new BinaryReader(BinaryString::fromString("data\x11moredata\x13"));
+        $beforeXon = $reader->readBytesWith(terminator: Terminator::DC1); // XON
+        $beforeXoff = $reader->readBytesWith(terminator: Terminator::DC3); // XOFF
+        $this->assertEquals("data", $beforeXon->toString());
+        $this->assertEquals("moredata", $beforeXoff->toString());
+    }
+
+    public function testReadWithMultipleNewTerminators(): void
+    {
+        // Test multiple different terminators in sequence
+        $data = "file1\x1Cgroup1\x1Drecord1\x1Eunit1\x1Fend\x20";
+        $reader = new BinaryReader(BinaryString::fromString($data));
+
+        $file = $reader->readStringWith(terminator: Terminator::FS);     // File Separator
+        $group = $reader->readStringWith(terminator: Terminator::GS);    // Group Separator
+        $record = $reader->readStringWith(terminator: Terminator::RS);   // Record Separator
+        $unit = $reader->readStringWith(terminator: Terminator::US);     // Unit Separator
+        $end = $reader->readStringWith(terminator: Terminator::SP);      // Space
+
+        $this->assertEquals("file1", $file->toString());
+        $this->assertEquals("group1", $group->toString());
+        $this->assertEquals("record1", $record->toString());
+        $this->assertEquals("unit1", $unit->toString());
+        $this->assertEquals("end", $end->toString());
+    }
+
+    public function testCrlfVsLfTerminators(): void
+    {
+        // Test that CRLF and LF are handled differently
+        $reader = new BinaryReader(BinaryString::fromString("line1\x0D\x0Aline2\x0Aline3"));
+
+        // Read first line with CRLF
+        $line1 = $reader->readStringWith(terminator: Terminator::CRLF);
+        $this->assertEquals("line1", $line1->toString());
+
+        // Read second line with just LF
+        $line2 = $reader->readStringWith(terminator: Terminator::LF);
+        $this->assertEquals("line2", $line2->toString());
     }
 }
